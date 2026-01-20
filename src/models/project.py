@@ -1,8 +1,9 @@
 """Project model."""
 
-from sqlalchemy import String, Text, Boolean
+from sqlalchemy import String, Text, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List
+from datetime import datetime
 
 from .base import Base, TimestampMixin
 
@@ -18,6 +19,7 @@ class Project(Base, TimestampMixin):
     obsidian_folder: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # hex color
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Когда заархивирован
 
     # Relationships
     tasks: Mapped[List["Task"]] = relationship(
