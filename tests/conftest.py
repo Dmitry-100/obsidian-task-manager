@@ -10,10 +10,11 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
 from httpx import AsyncClient, ASGITransport
 
 from src.models import Base
-from src.core.database import get_db
+from src.api.dependencies import get_db  # ВАЖНО: используем get_db из dependencies, не из database!
 from src.main import app
 
 
@@ -28,6 +29,8 @@ async def test_engine():
 
     StaticPool обеспечивает что используется одно и то же соединение,
     что критично для in-memory БД (иначе данные теряются).
+
+    ВАЖНО: Таблицы пересоздаются для каждого теста, обеспечивая полную изоляцию.
     """
     engine = create_async_engine(
         TEST_DATABASE_URL,
@@ -36,7 +39,11 @@ async def test_engine():
         connect_args={"check_same_thread": False}
     )
 
-    # Создаём все таблицы
+    # Удаляем все таблицы (если остались от предыдущего теста)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    # Создаём все таблицы заново
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
