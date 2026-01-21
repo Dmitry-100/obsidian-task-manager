@@ -19,6 +19,52 @@ uvicorn src.main:app --reload
 
 ---
 
+## Авторизация (API Key)
+
+**Все защищённые endpoints требуют заголовок `X-API-Key`.**
+
+### Настройка
+
+API ключ задаётся в `config/.env`:
+
+```bash
+API_KEY=your-secret-key-here
+```
+
+По умолчанию (для разработки): `dev-api-key-change-in-production`
+
+### Использование
+
+```bash
+# ❌ Без ключа - 401 Unauthorized
+curl http://localhost:8000/projects
+# Ответ: {"detail": "API key is missing. Add header: X-API-Key: your-key"}
+
+# ❌ С неверным ключом - 401 Unauthorized
+curl -H "X-API-Key: wrong-key" http://localhost:8000/projects
+# Ответ: {"detail": "Invalid API key"}
+
+# ✅ С правильным ключом - работает!
+curl -H "X-API-Key: dev-api-key-change-in-production" http://localhost:8000/projects
+```
+
+### Публичные endpoints (без авторизации)
+
+```bash
+# Root endpoint
+curl http://localhost:8000/
+# Ответ: {"name": "Obsidian Task Manager", "version": "1.0.0", ...}
+
+# Health check
+curl http://localhost:8000/health
+# Ответ: {"status": "healthy", "database": "not_checked"}
+```
+
+> **Важно:** Во всех примерах ниже предполагается, что вы добавляете заголовок авторизации:
+> `-H "X-API-Key: dev-api-key-change-in-production"`
+
+---
+
 ## Projects API
 
 ### 1. Создать проект
@@ -26,6 +72,7 @@ uvicorn src.main:app --reload
 ```bash
 curl -X POST http://localhost:8000/projects \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: dev-api-key-change-in-production" \
   -d '{
     "name": "Вайб-Кодинг Week 4",
     "description": "Изучение баз данных и SQLAlchemy",
@@ -33,16 +80,81 @@ curl -X POST http://localhost:8000/projects \
   }'
 ```
 
-### 2. Получить все проекты
+**Ответ (201 Created):**
+```json
+{
+  "id": 1,
+  "name": "Вайб-Кодинг Week 4",
+  "description": "Изучение баз данных и SQLAlchemy",
+  "color": "#3B82F6",
+  "obsidian_folder": null,
+  "is_archived": false,
+  "created_at": "2026-01-21T12:00:00",
+  "updated_at": "2026-01-21T12:00:00"
+}
+```
+
+**Ошибка валидации (422):**
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Ошибка валидации входных данных",
+    "details": [
+      {"field": "name", "message": "String should have at least 1 character"}
+    ]
+  }
+}
+```
+
+### 2. Получить все проекты (с пагинацией)
 
 ```bash
-curl http://localhost:8000/projects
+# Все проекты (первые 20)
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  http://localhost:8000/projects
+
+# С пагинацией
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  "http://localhost:8000/projects?skip=0&limit=10"
+
+# Включая архивные
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  "http://localhost:8000/projects?include_archived=true"
+```
+
+**Ответ (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "name": "Проект 1",
+    "description": null,
+    "color": "#3B82F6",
+    "is_archived": false,
+    "created_at": "2026-01-21T12:00:00",
+    "updated_at": "2026-01-21T12:00:00"
+  },
+  {
+    "id": 2,
+    "name": "Проект 2",
+    ...
+  }
+]
 ```
 
 ### 3. Получить проект по ID
 
 ```bash
-curl http://localhost:8000/projects/1
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  http://localhost:8000/projects/1
+```
+
+**Ошибка (404 Not Found):**
+```json
+{
+  "detail": "Project with id 999 not found"
+}
 ```
 
 ### 4. Обновить проект
@@ -88,11 +200,58 @@ curl -X DELETE "http://localhost:8000/projects/1?force=true"
 
 ## Tasks API
 
+### 0. Получить задачи с фильтрацией
+
+```bash
+# Все задачи (первые 20)
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  http://localhost:8000/tasks
+
+# Фильтр по статусу
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  "http://localhost:8000/tasks?status=todo"
+
+# Фильтр по приоритету
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  "http://localhost:8000/tasks?priority=high"
+
+# Комбинация фильтров + пагинация
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  "http://localhost:8000/tasks?status=todo&priority=high&skip=0&limit=10"
+
+# Фильтр по проекту
+curl -H "X-API-Key: dev-api-key-change-in-production" \
+  "http://localhost:8000/tasks?project_id=1"
+```
+
+**Доступные фильтры:**
+- `status`: `todo`, `in_progress`, `done`, `cancelled`
+- `priority`: `low`, `medium`, `high`, `critical`
+- `project_id`: ID проекта
+- `skip`: пропустить N записей (пагинация)
+- `limit`: максимум записей (1-100, по умолчанию 20)
+
+**Ответ (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "title": "Изучить REST API",
+    "status": "todo",
+    "priority": "high",
+    "project_id": 1,
+    "tags": [{"id": 1, "name": "learning"}],
+    ...
+  }
+]
+```
+
 ### 1. Создать задачу
 
 ```bash
 curl -X POST http://localhost:8000/tasks \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: dev-api-key-change-in-production" \
   -d '{
     "title": "Создать REST API",
     "description": "Реализовать CRUD endpoints для всех сущностей",
@@ -102,6 +261,29 @@ curl -X POST http://localhost:8000/tasks \
     "estimated_hours": 8,
     "tag_names": ["python", "fastapi", "backend", "api"]
   }'
+```
+
+**Ответ (201 Created):**
+```json
+{
+  "id": 1,
+  "title": "Создать REST API",
+  "description": "Реализовать CRUD endpoints...",
+  "status": "todo",
+  "priority": "high",
+  "project_id": 1,
+  "parent_task_id": null,
+  "due_date": "2026-01-25",
+  "completed_at": null,
+  "tags": [
+    {"id": 1, "name": "python"},
+    {"id": 2, "name": "fastapi"},
+    {"id": 3, "name": "backend"},
+    {"id": 4, "name": "api"}
+  ],
+  "created_at": "2026-01-21T12:00:00",
+  "updated_at": "2026-01-21T12:00:00"
+}
 ```
 
 ### 2. Создать подзадачу

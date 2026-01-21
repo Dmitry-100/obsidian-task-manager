@@ -69,9 +69,30 @@ open http://localhost:8000/docs  # Swagger UI
 open http://localhost:8000/redoc # ReDoc
 ```
 
+## Авторизация
+
+API защищён с помощью API Key. Передавайте ключ в заголовке `X-API-Key`:
+
+```bash
+curl -H "X-API-Key: your-api-key" http://localhost:8000/projects
+```
+
+Ключ настраивается в `config/.env`:
+
+```bash
+API_KEY=your-secret-key-here
+```
+
+По умолчанию (для разработки): `dev-api-key-change-in-production`
+
+**Публичные endpoints (без авторизации):**
+- `GET /` - информация об API
+- `GET /health` - health check
+
 ## Примеры использования API
 
-См. файл [api_examples.md](api_examples.md) для примеров запросов.
+- **curl примеры:** [api_examples.md](api_examples.md)
+- **Postman коллекция:** [postman_collection.json](postman_collection.json) - импортируйте в Postman
 
 ## Структура
 
