@@ -543,3 +543,42 @@ class TaskService:
             "is_overdue": is_overdue,
             "days_until_due": days_until_due,
         }
+
+    async def get_tasks_filtered(
+        self,
+        status: Optional[TaskStatus] = None,
+        priority: Optional[TaskPriority] = None,
+        project_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> List[Task]:
+        """
+        Получить задачи с фильтрами и пагинацией.
+
+        Args:
+            status: Фильтр по статусу (todo, in_progress, done, cancelled)
+            priority: Фильтр по приоритету (low, medium, high, critical)
+            project_id: Фильтр по проекту
+            skip: Пропустить N записей (пагинация)
+            limit: Максимум записей (пагинация)
+
+        Returns:
+            Список задач, соответствующих фильтрам
+
+        Примеры использования:
+            # Все задачи "к выполнению"
+            tasks = await service.get_tasks_filtered(status=TaskStatus.TODO)
+
+            # Высокоприоритетные задачи проекта 1
+            tasks = await service.get_tasks_filtered(
+                priority=TaskPriority.HIGH,
+                project_id=1
+            )
+        """
+        return await self.task_repo.get_filtered(
+            status=status,
+            priority=priority,
+            project_id=project_id,
+            skip=skip,
+            limit=limit
+        )

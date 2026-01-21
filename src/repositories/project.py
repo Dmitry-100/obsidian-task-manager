@@ -57,18 +57,31 @@ class ProjectRepository(BaseRepository[Project]):
         )
         return result.scalar_one_or_none()
 
-    async def get_active_projects(self) -> List[Project]:
+    async def get_active_projects(
+        self,
+        skip: int = 0,
+        limit: int = 20
+    ) -> List[Project]:
         """
-        Получить все активные (не архивированные) проекты.
+        Получить активные (не архивированные) проекты с пагинацией.
+
+        Args:
+            skip: Количество записей для пропуска (offset)
+            limit: Максимальное количество записей
 
         Returns:
             Список активных проектов
 
         SQL эквивалент:
-            SELECT * FROM projects WHERE is_archived = false;
+            SELECT * FROM projects
+            WHERE is_archived = false
+            OFFSET {skip} LIMIT {limit};
         """
         result = await self.db.execute(
-            select(Project).where(Project.is_archived == False)
+            select(Project)
+            .where(Project.is_archived == False)
+            .offset(skip)
+            .limit(limit)
         )
         return list(result.scalars().all())
 

@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
 from .api import projects_router, tasks_router, tags_router
+from .api.errors import register_error_handlers
 
 
 # ============================================================================
@@ -78,6 +79,9 @@ app.add_middleware(
 app.include_router(projects_router)
 app.include_router(tasks_router)
 app.include_router(tags_router)
+
+# Регистрируем обработчики ошибок для единого формата
+register_error_handlers(app)
 
 
 # ============================================================================

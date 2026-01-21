@@ -94,6 +94,69 @@ async def create_task(
 
 
 # ============================================================================
+# GET ALL TASKS (с фильтрацией и пагинацией)
+# ============================================================================
+
+@router.get(
+    "",
+    response_model=List[TaskResponse],
+    summary="Получить задачи с фильтрами",
+    description="""
+    Получить задачи с опциональными фильтрами и пагинацией.
+
+    **Фильтры:**
+    - status: фильтр по статусу (todo, in_progress, done, cancelled)
+    - priority: фильтр по приоритету (low, medium, high, critical)
+    - project_id: фильтр по проекту
+
+    **Пагинация:**
+    - skip: пропустить N записей
+    - limit: максимум записей (1-100)
+
+    Все фильтры комбинируются через AND.
+    """
+)
+async def get_tasks(
+    # Фильтры
+    status: Optional[TaskStatus] = Query(
+        None,
+        description="Фильтр по статусу: todo, in_progress, done, cancelled"
+    ),
+    priority: Optional[TaskPriority] = Query(
+        None,
+        description="Фильтр по приоритету: low, medium, high, critical"
+    ),
+    project_id: Optional[int] = Query(
+        None,
+        description="Фильтр по проекту"
+    ),
+    # Пагинация
+    skip: int = Query(0, ge=0, description="Пропустить N записей"),
+    limit: int = Query(20, ge=1, le=100, description="Максимум записей"),
+    service: TaskService = Depends(get_task_service)
+) -> List[TaskResponse]:
+    """
+    Получить задачи с фильтрами.
+
+    Примеры запросов:
+    ```
+    GET /tasks                              # первые 20 задач
+    GET /tasks?status=todo                  # только "к выполнению"
+    GET /tasks?priority=high&status=todo    # высокий приоритет + к выполнению
+    GET /tasks?project_id=1&skip=0&limit=10 # первые 10 задач проекта 1
+    ```
+    """
+    tasks = await service.get_tasks_filtered(
+        status=status,
+        priority=priority,
+        project_id=project_id,
+        skip=skip,
+        limit=limit
+    )
+    return [TaskResponse.model_validate(t) for t in tasks]
+
+
+# ============================================================================
 # GET TASK BY ID
 # ============================================================================
 

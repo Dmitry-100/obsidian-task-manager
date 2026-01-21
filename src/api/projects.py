@@ -92,16 +92,38 @@ async def create_project(
 
 
 # ============================================================================
-# GET ALL PROJECTS
+# GET ALL PROJECTS (с пагинацией)
 # ============================================================================
 
 @router.get(
     "",
     response_model=List[ProjectResponse],
     summary="Получить список проектов",
-    description="Получить все проекты с опциональным фильтром по архивным."
+    description="""
+    Получить проекты с пагинацией и фильтрацией.
+
+    **Пагинация:**
+    - skip: количество записей для пропуска (offset)
+    - limit: максимальное количество записей (по умолчанию 20)
+
+    **Фильтрация:**
+    - include_archived: включать ли архивные проекты
+    """
 )
 async def get_projects(
+    # Пагинация
+    skip: int = Query(
+        0,
+        ge=0,  # >= 0 (не может быть отрицательным)
+        description="Количество записей для пропуска (offset)"
+    ),
+    limit: int = Query(
+        20,
+        ge=1,  # >= 1 (хотя бы одна запись)
+        le=100,  # <= 100 (защита от слишком больших запросов)
+        description="Максимальное количество записей (1-100)"
+    ),
+    # Фильтрация
     include_archived: bool = Query(
         False,
         description="Включать ли архивные проекты"
@@ -109,18 +131,24 @@ async def get_projects(
     service: ProjectService = Depends(get_project_service)
 ) -> List[ProjectResponse]:
     """
-    Получить список всех проектов.
+    Получить список проектов с пагинацией.
 
     Query параметры:
-    - include_archived: bool - включать ли архивные проекты (по умолчанию false)
+    - skip: int - пропустить N записей (по умолчанию 0)
+    - limit: int - максимум записей (по умолчанию 20, макс 100)
+    - include_archived: bool - включать архивные (по умолчанию false)
 
-    Пример запроса:
+    Примеры запросов:
     ```
-    GET /projects?include_archived=false
+    GET /projects                          # первые 20 проектов
+    GET /projects?skip=20&limit=10         # проекты 21-30
+    GET /projects?include_archived=true    # с архивными
     ```
     """
     projects = await service.get_all_projects(
-        include_archived=include_archived
+        include_archived=include_archived,
+        skip=skip,
+        limit=limit
     )
     return [ProjectResponse.model_validate(p) for p in projects]
 

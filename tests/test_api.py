@@ -45,7 +45,7 @@ async def test_create_project_validation_error(test_client: AsyncClient):
     """Test: POST /projects - ошибка валидации (пустое название).
 
     FastAPI/Pydantic возвращает 422 Unprocessable Entity для ошибок валидации.
-    Это стандартное поведение согласно OpenAPI/JSON Schema спецификации.
+    Наш API преобразует ошибки Pydantic в единый формат ErrorResponse.
     """
     response = await test_client.post(
         "/projects",
@@ -58,7 +58,18 @@ async def test_create_project_validation_error(test_client: AsyncClient):
     # 422 - стандартный код FastAPI для ошибок валидации Pydantic
     assert response.status_code == 422
     data = response.json()
-    assert "detail" in data
+
+    # Проверяем единый формат ошибки (ErrorResponse)
+    assert "error" in data
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+    assert "message" in data["error"]
+
+    # Проверяем детали ошибки (какое поле вызвало ошибку)
+    assert data["error"]["details"] is not None
+    assert len(data["error"]["details"]) > 0
+    # Должна быть ошибка по полю "name"
+    field_names = [d["field"] for d in data["error"]["details"]]
+    assert "name" in field_names
 
 
 @pytest.mark.asyncio
@@ -76,6 +87,42 @@ async def test_get_projects_list(test_client: AsyncClient):
     assert len(data) == 2
     assert data[0]["name"] == "Project 1"
     assert data[1]["name"] == "Project 2"
+
+
+@pytest.mark.asyncio
+async def test_get_projects_pagination(test_client: AsyncClient):
+    """Test: GET /projects?skip=X&limit=Y - пагинация списка проектов.
+
+    Пагинация позволяет получать данные порциями:
+    - skip: пропустить N записей (offset)
+    - limit: максимум записей в ответе
+    """
+    # Создаём 5 проектов
+    for i in range(5):
+        await test_client.post("/projects", json={"name": f"Project {i+1}"})
+
+    # Тест 1: получаем первые 2 проекта
+    response = await test_client.get("/projects?skip=0&limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["name"] == "Project 1"
+    assert data[1]["name"] == "Project 2"
+
+    # Тест 2: пропускаем 2, берём следующие 2
+    response = await test_client.get("/projects?skip=2&limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["name"] == "Project 3"
+    assert data[1]["name"] == "Project 4"
+
+    # Тест 3: пропускаем 4, берём оставшиеся (только 1)
+    response = await test_client.get("/projects?skip=4&limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Project 5"
 
 
 @pytest.mark.asyncio
@@ -227,6 +274,63 @@ async def test_get_project_statistics(test_client: AsyncClient):
 # ============================================================================
 # TASK API TESTS
 # ============================================================================
+
+@pytest.mark.asyncio
+async def test_get_tasks_with_filters(test_client: AsyncClient):
+    """Test: GET /tasks - получение задач с фильтрами.
+
+    Проверяем:
+    - Базовый запрос без фильтров
+    - Фильтр по статусу
+    - Фильтр по приоритету
+    - Комбинация фильтров
+    """
+    # Создаём проект
+    project_response = await test_client.post(
+        "/projects", json={"name": "Filter Test Project"}
+    )
+    project_id = project_response.json()["id"]
+
+    # Создаём задачи с разными статусами и приоритетами
+    await test_client.post("/tasks", json={
+        "title": "Todo Low", "project_id": project_id,
+        "status": "todo", "priority": "low"
+    })
+    await test_client.post("/tasks", json={
+        "title": "Todo High", "project_id": project_id,
+        "status": "todo", "priority": "high"
+    })
+    await test_client.post("/tasks", json={
+        "title": "In Progress Medium", "project_id": project_id,
+        "status": "in_progress", "priority": "medium"
+    })
+
+    # Тест 1: Все задачи (без фильтров)
+    response = await test_client.get("/tasks")
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+
+    # Тест 2: Фильтр по статусу "todo"
+    response = await test_client.get("/tasks?status=todo")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert all(t["status"] == "todo" for t in data)
+
+    # Тест 3: Фильтр по приоритету "high"
+    response = await test_client.get("/tasks?priority=high")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["priority"] == "high"
+
+    # Тест 4: Комбинация фильтров (status + priority)
+    response = await test_client.get("/tasks?status=todo&priority=low")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Todo Low"
+
 
 @pytest.mark.asyncio
 async def test_create_task(test_client: AsyncClient):

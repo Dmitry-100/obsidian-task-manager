@@ -339,3 +339,58 @@ class TaskRepository(BaseRepository[Task]):
             )
         )
         return list(result.scalars().all())
+
+    async def get_filtered(
+        self,
+        status: Optional[TaskStatus] = None,
+        priority: Optional[TaskPriority] = None,
+        project_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> List[Task]:
+        """
+        Получить задачи с фильтрами и пагинацией.
+
+        Все фильтры комбинируются через AND.
+
+        Args:
+            status: Фильтр по статусу (optional)
+            priority: Фильтр по приоритету (optional)
+            project_id: Фильтр по проекту (optional)
+            skip: Пропустить N записей
+            limit: Максимум записей
+
+        Returns:
+            Список задач, соответствующих фильтрам
+
+        SQL эквивалент:
+            SELECT * FROM tasks
+            WHERE status = {status}  -- если указан
+              AND priority = {priority}  -- если указан
+              AND project_id = {project_id}  -- если указан
+            OFFSET {skip} LIMIT {limit};
+        """
+        # Строим базовый запрос
+        query = select(Task).options(selectinload(Task.tags))
+
+        # Динамически добавляем фильтры
+        conditions = []
+
+        if status is not None:
+            conditions.append(Task.status == status)
+
+        if priority is not None:
+            conditions.append(Task.priority == priority)
+
+        if project_id is not None:
+            conditions.append(Task.project_id == project_id)
+
+        # Применяем все условия через AND
+        if conditions:
+            query = query.where(and_(*conditions))
+
+        # Пагинация
+        query = query.offset(skip).limit(limit)
+
+        result = await self.db.execute(query)
+        return list(result.scalars().all())

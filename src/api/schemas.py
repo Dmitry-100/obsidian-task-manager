@@ -273,9 +273,77 @@ class CommentCreate(BaseModel):
 # COMMON SCHEMAS
 # ============================================================================
 
+class ErrorDetail(BaseModel):
+    """
+    Детали ошибки для конкретного поля.
+
+    Используется когда ошибка связана с конкретным полем запроса.
+
+    Пример:
+    {
+        "field": "email",
+        "message": "Некорректный формат email"
+    }
+    """
+    field: str = Field(..., description="Название поля с ошибкой")
+    message: str = Field(..., description="Описание ошибки")
+
+
+class ErrorBody(BaseModel):
+    """
+    Тело ошибки с кодом и деталями.
+
+    Структурированный формат позволяет клиенту:
+    1. Определить тип ошибки по code
+    2. Показать пользователю message
+    3. Подсветить проблемные поля из details
+
+    Примеры кодов:
+    - VALIDATION_ERROR: ошибка валидации полей
+    - NOT_FOUND: ресурс не найден
+    - ALREADY_EXISTS: ресурс уже существует
+    - INTERNAL_ERROR: внутренняя ошибка сервера
+    """
+    code: str = Field(..., description="Код ошибки (VALIDATION_ERROR, NOT_FOUND, etc.)")
+    message: str = Field(..., description="Человекочитаемое сообщение")
+    details: Optional[List[ErrorDetail]] = Field(
+        default=None,
+        description="Список ошибок по полям (для валидации)"
+    )
+
+
 class ErrorResponse(BaseModel):
     """
-    Схема для ошибок.
+    Единый формат ответа для всех ошибок API.
+
+    Пример ошибки валидации:
+    {
+        "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Ошибка валидации входных данных",
+            "details": [
+                {"field": "name", "message": "Название не может быть пустым"},
+                {"field": "email", "message": "Некорректный формат email"}
+            ]
+        }
+    }
+
+    Пример ошибки "не найдено":
+    {
+        "error": {
+            "code": "NOT_FOUND",
+            "message": "Проект с id=999 не найден",
+            "details": null
+        }
+    }
+    """
+    error: ErrorBody
+
+
+# Для обратной совместимости оставляем старый формат
+class SimpleErrorResponse(BaseModel):
+    """
+    Простой формат ошибки (для обратной совместимости).
 
     Пример:
     {

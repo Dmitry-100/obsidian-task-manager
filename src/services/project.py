@@ -255,21 +255,25 @@ class ProjectService:
 
     async def get_all_projects(
         self,
-        include_archived: bool = False
+        include_archived: bool = False,
+        skip: int = 0,
+        limit: int = 20
     ) -> List[Project]:
         """
-        Получить все проекты.
+        Получить все проекты с пагинацией.
 
         Args:
             include_archived: Включать ли архивные проекты
+            skip: Количество записей для пропуска (offset)
+            limit: Максимальное количество записей
 
         Returns:
             Список проектов
         """
         if include_archived:
-            return await self.project_repo.get_all()
+            return await self.project_repo.get_all(skip=skip, limit=limit)
         else:
-            return await self.project_repo.get_active_projects()
+            return await self.project_repo.get_active_projects(skip=skip, limit=limit)
 
     async def get_project_statistics(self, project_id: int) -> dict:
         """
