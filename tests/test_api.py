@@ -69,6 +69,53 @@ async def test_public_endpoints_work_without_auth():
 
 
 # ============================================================================
+# API VERSIONING TESTS
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_api_v1_endpoints_work(test_client: AsyncClient):
+    """Test: API v1 endpoints (/api/v1/...) работают корректно."""
+    # Проверяем /api/v1/projects
+    response = await test_client.get("/api/v1/projects")
+    assert response.status_code == 200
+
+    # Проверяем /api/v1/tasks
+    response = await test_client.get("/api/v1/tasks")
+    assert response.status_code == 200
+
+    # Проверяем /api/v1/tags
+    response = await test_client.get("/api/v1/tags")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_api_v1_requires_auth():
+    """Test: API v1 endpoints требуют авторизации."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+        # Без API ключа
+    ) as client:
+        response = await client.get("/api/v1/projects")
+        assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_root_shows_api_version():
+    """Test: Root endpoint показывает информацию о версии API."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        response = await client.get("/")
+        assert response.status_code == 200
+        data = response.json()
+        assert "api_version" in data
+        assert data["api_version"] == "v1"
+        assert "/api/v1/projects" in data["endpoints"]["projects"]
+
+
+# ============================================================================
 # PROJECT API TESTS
 # ============================================================================
 

@@ -9,15 +9,52 @@
 API документация:
     http://localhost:8000/docs       - Swagger UI
     http://localhost:8000/redoc      - ReDoc
+
+Версионирование:
+    API доступно по путям /api/v1/...
+    Старые пути (/projects, /tasks, /tags) также поддерживаются для обратной совместимости.
 """
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .core.config import settings
 from .api import projects_router, tasks_router, tags_router
 from .api.errors import register_error_handlers
 from .api.dependencies import verify_api_key
+
+
+# ============================================================================
+# RATE LIMITER SETUP
+# ============================================================================
+
+# Создаём rate limiter
+# key_func определяет по какому ключу группировать запросы (по IP адресу)
+limiter = Limiter(key_func=get_remote_address)
+
+
+def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """
+    Кастомный обработчик превышения лимита запросов.
+
+    Возвращает ошибку в едином формате ErrorResponse.
+    """
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": {
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": f"Слишком много запросов. Лимит: {exc.detail}",
+                "details": [
+                    {"field": "rate_limit", "message": str(exc.detail)}
+                ]
+            }
+        }
+    )
 
 
 # ============================================================================
@@ -50,12 +87,27 @@ app = FastAPI(
                 ↓
               Tags (M:M)
     ```
+
+    ## Версионирование
+
+    API версия 1 доступна по пути `/api/v1/`.
+    Примеры: `/api/v1/projects`, `/api/v1/tasks`, `/api/v1/tags`
+
+    ## Rate Limiting
+
+    API защищено от злоупотреблений:
+    - **100 запросов/минуту** для обычных endpoints
+    - При превышении лимита вернётся ошибка 429 Too Many Requests
     """,
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+# Подключаем rate limiter к приложению
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
 
 # ============================================================================
@@ -73,22 +125,45 @@ app.add_middleware(
 
 
 # ============================================================================
+# API VERSIONING
+# ============================================================================
+
+# Создаём роутер для API v1
+api_v1_router = APIRouter(prefix="/api/v1")
+
+# Добавляем все ресурсные роутеры в v1
+api_v1_router.include_router(projects_router)
+api_v1_router.include_router(tasks_router)
+api_v1_router.include_router(tags_router)
+
+
+# ============================================================================
 # INCLUDE ROUTERS
 # ============================================================================
 
-# Подключаем роутеры для каждого ресурса
+# Подключаем версионированный API (/api/v1/...)
 # dependencies=[Depends(verify_api_key)] - все endpoints роутера требуют авторизации
 app.include_router(
+    api_v1_router,
+    dependencies=[Depends(verify_api_key)]
+)
+
+# Для обратной совместимости оставляем старые пути без /api/v1
+# В будущем можно убрать (deprecated)
+app.include_router(
     projects_router,
-    dependencies=[Depends(verify_api_key)]  # Защищаем все /projects endpoints
+    dependencies=[Depends(verify_api_key)],
+    deprecated=True  # Помечаем как deprecated в документации
 )
 app.include_router(
     tasks_router,
-    dependencies=[Depends(verify_api_key)]  # Защищаем все /tasks endpoints
+    dependencies=[Depends(verify_api_key)],
+    deprecated=True
 )
 app.include_router(
     tags_router,
-    dependencies=[Depends(verify_api_key)]  # Защищаем все /tags endpoints
+    dependencies=[Depends(verify_api_key)],
+    deprecated=True
 )
 
 # Регистрируем обработчики ошибок для единого формата
@@ -105,7 +180,8 @@ register_error_handlers(app)
     summary="Root endpoint",
     description="Информация о API"
 )
-async def root():
+@limiter.limit("100/minute")
+async def root(request: Request):
     """
     Корневой endpoint.
 
@@ -114,14 +190,21 @@ async def root():
     return {
         "name": settings.APP_NAME,
         "version": "1.0.0",
+        "api_version": "v1",
         "docs": "/docs",
         "redoc": "/redoc",
         "openapi": "/openapi.json",
         "endpoints": {
-            "projects": "/projects",
-            "tasks": "/tasks",
-            "tags": "/tags",
+            "projects": "/api/v1/projects",
+            "tasks": "/api/v1/tasks",
+            "tags": "/api/v1/tags",
         },
+        "deprecated_endpoints": {
+            "projects": "/projects (use /api/v1/projects)",
+            "tasks": "/tasks (use /api/v1/tasks)",
+            "tags": "/tags (use /api/v1/tags)",
+        },
+        "rate_limit": "100 requests/minute",
         "description": "Task Manager для Obsidian Second Brain"
     }
 
@@ -136,7 +219,8 @@ async def root():
     summary="Health check",
     description="Проверка работоспособности API"
 )
-async def health_check():
+@limiter.limit("100/minute")
+async def health_check(request: Request):
     """
     Health check endpoint.
 
@@ -153,7 +237,8 @@ async def health_check():
     # TODO: Добавить проверку подключения к БД
     return {
         "status": "healthy",
-        "database": "not_checked"  # можно добавить проверку
+        "database": "not_checked",  # можно добавить проверку
+        "rate_limit": "100/minute"
     }
 
 
@@ -174,6 +259,8 @@ async def startup_event():
     print(f"🚀 {settings.APP_NAME} started!")
     print(f"📚 Docs: http://localhost:8000/docs")
     print(f"📖 ReDoc: http://localhost:8000/redoc")
+    print(f"🔒 Rate Limit: 100 requests/minute")
+    print(f"📦 API v1: http://localhost:8000/api/v1/")
 
 
 @app.on_event("shutdown")
