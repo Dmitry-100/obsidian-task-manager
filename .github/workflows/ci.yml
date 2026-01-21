@@ -1,0 +1,80 @@
+# =============================================================================
+# GitHub Actions CI Pipeline
+# =============================================================================
+# Запускается при:
+# - Push в main
+# - Pull Request в main
+#
+# Проверяет:
+# - Ruff (linter + formatter)
+# - Mypy (type checker)
+# - Bandit (security)
+# - Pytest (tests + coverage)
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Cache pip dependencies
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 5. Ruff Linter
+      - name: Ruff Linter
+        run: ruff check src/
+
+      # 6. Ruff Format Check
+      - name: Ruff Format Check
+        run: ruff format src/ --check
+
+      # 7. Mypy Type Checker
+      - name: Mypy Type Checker
+        run: mypy src/
+
+      # 8. Bandit Security Check
+      - name: Bandit Security Check
+        run: bandit -r src/ -q
+
+      # 9. Pytest with Coverage
+      - name: Run Tests with Coverage
+        run: |
+          pytest --cov=src --cov-report=xml --cov-report=term -q
+
+      # 10. Upload coverage to Codecov (optional)
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
