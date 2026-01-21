@@ -5,11 +5,67 @@
 - HTTP статус-коды
 - Форматы запросов/ответов (JSON)
 - Обработку ошибок (400, 404, 500)
+- Авторизацию (API Key)
 - Интеграцию всех слоёв (API → Service → Repository → DB)
 """
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
+
+from src.main import app
+
+
+# ============================================================================
+# AUTHENTICATION TESTS
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_request_without_api_key_returns_401():
+    """Test: Запрос без API ключа возвращает 401 Unauthorized.
+
+    Все защищённые endpoints требуют заголовок X-API-Key.
+    Без него сервер должен вернуть 401.
+    """
+    # Создаём клиент БЕЗ API ключа
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+        # Обратите внимание: нет headers с X-API-Key
+    ) as client:
+        response = await client.get("/projects")
+
+    assert response.status_code == 401
+    assert "API key" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_request_with_invalid_api_key_returns_401():
+    """Test: Запрос с неверным API ключом возвращает 401 Unauthorized."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"X-API-Key": "wrong-key-12345"}
+    ) as client:
+        response = await client.get("/projects")
+
+    assert response.status_code == 401
+    assert "Invalid API key" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_public_endpoints_work_without_auth():
+    """Test: Публичные endpoints (/, /health) работают без авторизации."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        # Root endpoint
+        response = await client.get("/")
+        assert response.status_code == 200
+
+        # Health check
+        response = await client.get("/health")
+        assert response.status_code == 200
 
 
 # ============================================================================

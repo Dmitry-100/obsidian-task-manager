@@ -24,11 +24,69 @@ Dependency Injection (DI) - паттерн для автоматического
 """
 
 from typing import AsyncGenerator
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import AsyncSessionLocal
+from ..core.config import settings
 from ..services import ProjectService, TaskService, TagService
+
+
+# ============================================================================
+# API KEY AUTHENTICATION
+# ============================================================================
+
+# Определяем схему авторизации для Swagger UI
+# name="X-API-Key" - название заголовка, который клиент должен отправить
+api_key_header = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,  # Не выбрасывать ошибку автоматически, мы сами обработаем
+    description="API ключ для авторизации. Передавайте в заголовке X-API-Key"
+)
+
+
+async def verify_api_key(
+    api_key: str = Depends(api_key_header)
+) -> str:
+    """
+    Dependency для проверки API ключа.
+
+    Как работает:
+    1. Клиент отправляет запрос с заголовком X-API-Key
+    2. FastAPI извлекает значение через api_key_header
+    3. Мы сравниваем с ключом из настроек
+    4. Если не совпадает - возвращаем 401 Unauthorized
+
+    Использование:
+        @app.get("/protected")
+        async def protected_endpoint(
+            api_key: str = Depends(verify_api_key)
+        ):
+            # Этот код выполнится только если ключ верный
+            return {"message": "Вы авторизованы!"}
+
+    Пример запроса:
+        curl -H "X-API-Key: your-secret-key" http://localhost:8000/projects
+    """
+    # Если ключ не передан
+    if api_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key is missing. Add header: X-API-Key: your-key",
+            headers={"WWW-Authenticate": "ApiKey"}
+        )
+
+    # Если ключ неверный
+    if api_key != settings.API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "ApiKey"}
+        )
+
+    # Ключ верный - возвращаем его (можно использовать для логирования)
+    return api_key
 
 
 # ============================================================================

@@ -16,6 +16,7 @@ from httpx import AsyncClient, ASGITransport
 from src.models import Base
 from src.api.dependencies import get_db  # ВАЖНО: используем get_db из dependencies, не из database!
 from src.main import app
+from src.core.config import settings  # Для получения API ключа
 
 
 # Test database URL (SQLite in-memory)
@@ -104,10 +105,12 @@ async def test_client(test_engine):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Создаём async HTTP клиент
+    # Создаём async HTTP клиент с авторизацией
+    # Все тесты автоматически отправляют API ключ в заголовке
     async with AsyncClient(
         transport=ASGITransport(app=app),
-        base_url="http://test"
+        base_url="http://test",
+        headers={"X-API-Key": settings.API_KEY}  # Добавляем авторизацию
     ) as client:
         yield client
 

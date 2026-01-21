@@ -11,12 +11,13 @@ API документация:
     http://localhost:8000/redoc      - ReDoc
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
 from .api import projects_router, tasks_router, tags_router
 from .api.errors import register_error_handlers
+from .api.dependencies import verify_api_key
 
 
 # ============================================================================
@@ -76,9 +77,19 @@ app.add_middleware(
 # ============================================================================
 
 # Подключаем роутеры для каждого ресурса
-app.include_router(projects_router)
-app.include_router(tasks_router)
-app.include_router(tags_router)
+# dependencies=[Depends(verify_api_key)] - все endpoints роутера требуют авторизации
+app.include_router(
+    projects_router,
+    dependencies=[Depends(verify_api_key)]  # Защищаем все /projects endpoints
+)
+app.include_router(
+    tasks_router,
+    dependencies=[Depends(verify_api_key)]  # Защищаем все /tasks endpoints
+)
+app.include_router(
+    tags_router,
+    dependencies=[Depends(verify_api_key)]  # Защищаем все /tags endpoints
+)
 
 # Регистрируем обработчики ошибок для единого формата
 register_error_handlers(app)

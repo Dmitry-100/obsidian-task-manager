@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "Obsidian Task Manager"
     DEBUG: bool = False
 
+    # Authentication
+    # API Key для авторизации запросов
+    # В продакшене ОБЯЗАТЕЛЬНО установить через переменную окружения!
+    API_KEY: str = "dev-api-key-change-in-production"
+
     # Obsidian integration
     OBSIDIAN_VAULT_PATH: Optional[str] = None
 
