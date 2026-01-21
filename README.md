@@ -1,5 +1,7 @@
 # Obsidian Task Manager
 
+![CI](https://github.com/Dmitry-100/obsidian-task-manager/actions/workflows/ci.yml/badge.svg)
+
 Task Manager для интеграции с Obsidian Second Brain.
 
 ## Возможности
