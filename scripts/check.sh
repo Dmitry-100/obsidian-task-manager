@@ -145,10 +145,56 @@ else
 fi
 
 # =============================================================================
-# РЕЗУЛЬТАТ
+# 6. COVERAGE CHECK (информационно)
+# =============================================================================
+print_header "6. Coverage Summary"
+
+COVERAGE=$(pytest --cov=src --cov-report=term -q 2>/dev/null | grep "TOTAL" | awk '{print $4}' | tr -d '%')
+if [ -n "$COVERAGE" ]; then
+    if [ "$COVERAGE" -ge 70 ]; then
+        print_success "Coverage: ${COVERAGE}% (minimum 70%)"
+    else
+        print_warning "Coverage: ${COVERAGE}% (below 70% minimum)"
+    fi
+else
+    print_warning "Coverage: Could not calculate"
+fi
+
+# =============================================================================
+# DEFINITION OF DONE SUMMARY
 # =============================================================================
 echo ""
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  📋 DEFINITION OF DONE${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${GREEN}  ✓${NC} Ruff linter passed"
+echo -e "${GREEN}  ✓${NC} Ruff format applied"
+echo -e "${GREEN}  ✓${NC} Mypy type check passed"
+echo -e "${GREEN}  ✓${NC} Bandit security scan passed"
+if [ "$FAST_MODE" = false ]; then
+    echo -e "${GREEN}  ✓${NC} All tests passed"
+    if [ -n "$COVERAGE" ] && [ "$COVERAGE" -ge 70 ]; then
+        echo -e "${GREEN}  ✓${NC} Coverage >= 70%"
+    else
+        echo -e "${YELLOW}  ⚠${NC} Coverage < 70% (review needed)"
+    fi
+else
+    echo -e "${YELLOW}  ⚠${NC} Tests skipped (--fast mode)"
+fi
+echo ""
+echo -e "${YELLOW}  Manual checks needed:${NC}"
+echo "  - [ ] Type hints added for new functions"
+echo "  - [ ] Docstrings written for public methods"
+echo "  - [ ] No hardcoded values (use config)"
+echo "  - [ ] No secrets in code"
+echo "  - [ ] README updated (if needed)"
+echo ""
+
+# =============================================================================
+# РЕЗУЛЬТАТ
+# =============================================================================
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  ✅ ALL CHECKS PASSED!${NC}"
+echo -e "${GREEN}  ✅ ALL AUTOMATED CHECKS PASSED!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
