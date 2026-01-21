@@ -13,13 +13,13 @@
 3. Handler преобразует исключение в HTTP ответ
 """
 
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 import logging
 
-from .schemas import ErrorResponse, ErrorBody, ErrorDetail
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from .schemas import ErrorBody, ErrorDetail, ErrorResponse
 
 # Настраиваем логгер для отслеживания ошибок
 logger = logging.getLogger(__name__)
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CUSTOM EXCEPTIONS (Наши собственные исключения)
 # =============================================================================
+
 
 class APIError(Exception):
     """
@@ -42,11 +43,7 @@ class APIError(Exception):
     """
 
     def __init__(
-        self,
-        code: str,
-        message: str,
-        status_code: int = 400,
-        details: list[dict] | None = None
+        self, code: str, message: str, status_code: int = 400, details: list[dict] | None = None
     ):
         self.code = code
         self.message = message
@@ -68,7 +65,7 @@ class NotFoundError(APIError):
         super().__init__(
             code="NOT_FOUND",
             message=f"{resource} с id={resource_id} не найден",
-            status_code=status.HTTP_404_NOT_FOUND
+            status_code=status.HTTP_404_NOT_FOUND,
         )
 
 
@@ -86,7 +83,7 @@ class AlreadyExistsError(APIError):
             code="ALREADY_EXISTS",
             message=f"{resource} с {field}='{value}' уже существует",
             status_code=status.HTTP_400_BAD_REQUEST,
-            details=[{"field": field, "message": f"Значение '{value}' уже используется"}]
+            details=[{"field": field, "message": f"Значение '{value}' уже используется"}],
         )
 
 
@@ -103,13 +100,14 @@ class ValidationError_(APIError):
             code="VALIDATION_ERROR",
             message=message,
             status_code=status.HTTP_400_BAD_REQUEST,
-            details=details
+            details=details,
         )
 
 
 # =============================================================================
 # EXCEPTION HANDLERS (Обработчики исключений)
 # =============================================================================
+
 
 async def api_error_handler(request: Request, exc: APIError) -> JSONResponse:
     """
@@ -127,23 +125,13 @@ async def api_error_handler(request: Request, exc: APIError) -> JSONResponse:
 
     # Создаём ответ в едином формате
     error_response = ErrorResponse(
-        error=ErrorBody(
-            code=exc.code,
-            message=exc.message,
-            details=details
-        )
+        error=ErrorBody(code=exc.code, message=exc.message, details=details)
     )
 
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=error_response.model_dump()
-    )
+    return JSONResponse(status_code=exc.status_code, content=error_response.model_dump())
 
 
-async def validation_error_handler(
-    request: Request,
-    exc: RequestValidationError
-) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """
     Обработчик для ошибок валидации Pydantic (422).
 
@@ -178,22 +166,18 @@ async def validation_error_handler(
         if len(field_path) > 1 and field_path[0] == "body":
             field_name = ".".join(str(p) for p in field_path[1:])
 
-        details.append(ErrorDetail(
-            field=str(field_name),
-            message=error.get("msg", "Ошибка валидации")
-        ))
+        details.append(
+            ErrorDetail(field=str(field_name), message=error.get("msg", "Ошибка валидации"))
+        )
 
     error_response = ErrorResponse(
         error=ErrorBody(
-            code="VALIDATION_ERROR",
-            message="Ошибка валидации входных данных",
-            details=details
+            code="VALIDATION_ERROR", message="Ошибка валидации входных данных", details=details
         )
     )
 
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=error_response.model_dump()
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error_response.model_dump()
     )
 
 
@@ -211,19 +195,19 @@ async def generic_error_handler(request: Request, exc: Exception) -> JSONRespons
         error=ErrorBody(
             code="INTERNAL_ERROR",
             message="Внутренняя ошибка сервера",
-            details=None  # НЕ показываем детали!
+            details=None,  # НЕ показываем детали!
         )
     )
 
     return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=error_response.model_dump()
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error_response.model_dump()
     )
 
 
 # =============================================================================
 # РЕГИСТРАЦИЯ HANDLERS
 # =============================================================================
+
 
 def register_error_handlers(app):
     """

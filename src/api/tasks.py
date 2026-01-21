@@ -9,20 +9,19 @@ API endpoints для работы с задачами.
 - Фильтрацию и поиск
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from ..models import TaskPriority, TaskStatus
 from ..services import TaskService
-from ..models import TaskStatus, TaskPriority
 from .dependencies import get_task_service
 from .schemas import (
-    TaskCreate,
-    TaskUpdate,
-    TaskResponse,
-    TaskDetailResponse,
     CommentCreate,
     CommentResponse,
     ErrorResponse,
+    TaskCreate,
+    TaskDetailResponse,
+    TaskResponse,
+    TaskUpdate,
 )
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -31,6 +30,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 # ============================================================================
 # CREATE TASK
 # ============================================================================
+
 
 @router.post(
     "",
@@ -49,11 +49,10 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
     responses={
         201: {"description": "Задача создана"},
         400: {"model": ErrorResponse, "description": "Ошибка валидации"},
-    }
+    },
 )
 async def create_task(
-    data: TaskCreate,
-    service: TaskService = Depends(get_task_service)
+    data: TaskCreate, service: TaskService = Depends(get_task_service)
 ) -> TaskDetailResponse:
     """
     Создать новую задачу.
@@ -87,19 +86,17 @@ async def create_task(
         )
         return TaskDetailResponse.model_validate(task)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # GET ALL TASKS (с фильтрацией и пагинацией)
 # ============================================================================
 
+
 @router.get(
     "",
-    response_model=List[TaskResponse],
+    response_model=list[TaskResponse],
     summary="Получить задачи с фильтрами",
     description="""
     Получить задачи с опциональными фильтрами и пагинацией.
@@ -114,27 +111,22 @@ async def create_task(
     - limit: максимум записей (1-100)
 
     Все фильтры комбинируются через AND.
-    """
+    """,
 )
 async def get_tasks(
     # Фильтры
-    status: Optional[TaskStatus] = Query(
-        None,
-        description="Фильтр по статусу: todo, in_progress, done, cancelled"
+    status: TaskStatus | None = Query(
+        None, description="Фильтр по статусу: todo, in_progress, done, cancelled"
     ),
-    priority: Optional[TaskPriority] = Query(
-        None,
-        description="Фильтр по приоритету: low, medium, high, critical"
+    priority: TaskPriority | None = Query(
+        None, description="Фильтр по приоритету: low, medium, high, critical"
     ),
-    project_id: Optional[int] = Query(
-        None,
-        description="Фильтр по проекту"
-    ),
+    project_id: int | None = Query(None, description="Фильтр по проекту"),
     # Пагинация
     skip: int = Query(0, ge=0, description="Пропустить N записей"),
     limit: int = Query(20, ge=1, le=100, description="Максимум записей"),
-    service: TaskService = Depends(get_task_service)
-) -> List[TaskResponse]:
+    service: TaskService = Depends(get_task_service),
+) -> list[TaskResponse]:
     """
     Получить задачи с фильтрами.
 
@@ -147,11 +139,7 @@ async def get_tasks(
     ```
     """
     tasks = await service.get_tasks_filtered(
-        status=status,
-        priority=priority,
-        project_id=project_id,
-        skip=skip,
-        limit=limit
+        status=status, priority=priority, project_id=project_id, skip=skip, limit=limit
     )
     return [TaskResponse.model_validate(t) for t in tasks]
 
@@ -159,6 +147,7 @@ async def get_tasks(
 # ============================================================================
 # GET TASK BY ID
 # ============================================================================
+
 
 @router.get(
     "/{task_id}",
@@ -168,11 +157,10 @@ async def get_tasks(
     responses={
         200: {"description": "Задача найдена"},
         404: {"model": ErrorResponse, "description": "Задача не найдена"},
-    }
+    },
 )
 async def get_task(
-    task_id: int,
-    service: TaskService = Depends(get_task_service)
+    task_id: int, service: TaskService = Depends(get_task_service)
 ) -> TaskDetailResponse:
     """
     Получить задачу по ID.
@@ -191,15 +179,13 @@ async def get_task(
         task = await service.get_task(task_id, full=True)
         return TaskDetailResponse.model_validate(task)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ============================================================================
 # UPDATE TASK
 # ============================================================================
+
 
 @router.put(
     "/{task_id}",
@@ -214,12 +200,10 @@ async def get_task(
         200: {"description": "Задача обновлена"},
         400: {"model": ErrorResponse, "description": "Ошибка валидации"},
         404: {"model": ErrorResponse, "description": "Задача не найдена"},
-    }
+    },
 )
 async def update_task(
-    task_id: int,
-    data: TaskUpdate,
-    service: TaskService = Depends(get_task_service)
+    task_id: int, data: TaskUpdate, service: TaskService = Depends(get_task_service)
 ) -> TaskDetailResponse:
     """
     Обновить задачу.
@@ -248,20 +232,15 @@ async def update_task(
         return TaskDetailResponse.model_validate(task)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # COMPLETE TASK
 # ============================================================================
+
 
 @router.post(
     "/{task_id}/complete",
@@ -276,11 +255,10 @@ async def update_task(
         200: {"description": "Задача завершена"},
         400: {"model": ErrorResponse, "description": "Есть незавершённые подзадачи"},
         404: {"model": ErrorResponse, "description": "Задача не найдена"},
-    }
+    },
 )
 async def complete_task(
-    task_id: int,
-    service: TaskService = Depends(get_task_service)
+    task_id: int, service: TaskService = Depends(get_task_service)
 ) -> TaskDetailResponse:
     """
     Завершить задачу.
@@ -299,20 +277,15 @@ async def complete_task(
         return TaskDetailResponse.model_validate(task)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # DELETE TASK
 # ============================================================================
+
 
 @router.delete(
     "/{task_id}",
@@ -328,12 +301,12 @@ async def complete_task(
         204: {"description": "Задача удалена"},
         400: {"model": ErrorResponse, "description": "Задача имеет подзадачи"},
         404: {"model": ErrorResponse, "description": "Задача не найдена"},
-    }
+    },
 )
 async def delete_task(
     task_id: int,
     force: bool = Query(False, description="Принудительное удаление"),
-    service: TaskService = Depends(get_task_service)
+    service: TaskService = Depends(get_task_service),
 ):
     """
     Удалить задачу.
@@ -350,37 +323,32 @@ async def delete_task(
         await service.delete_task(task_id, force=force)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # GET TASKS BY PROJECT
 # ============================================================================
 
+
 @router.get(
     "/by-project/{project_id}",
-    response_model=List[TaskResponse],
+    response_model=list[TaskResponse],
     summary="Получить задачи проекта",
     description="Получить все задачи проекта с опциональными фильтрами.",
     responses={
         200: {"description": "Список задач"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def get_tasks_by_project(
     project_id: int,
     include_completed: bool = Query(False, description="Включать завершённые"),
     root_only: bool = Query(False, description="Только корневые задачи"),
-    service: TaskService = Depends(get_task_service)
-) -> List[TaskResponse]:
+    service: TaskService = Depends(get_task_service),
+) -> list[TaskResponse]:
     """
     Получить задачи проекта.
 
@@ -399,25 +367,21 @@ async def get_tasks_by_project(
     """
     try:
         tasks = await service.get_tasks_by_project(
-            project_id=project_id,
-            include_completed=include_completed,
-            root_only=root_only
+            project_id=project_id, include_completed=include_completed, root_only=root_only
         )
         return [TaskResponse.model_validate(t) for t in tasks]
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ============================================================================
 # GET OVERDUE TASKS
 # ============================================================================
 
+
 @router.get(
     "/overdue",
-    response_model=List[TaskResponse],
+    response_model=list[TaskResponse],
     summary="Получить просроченные задачи",
     description="""
     Получить все просроченные задачи.
@@ -425,11 +389,9 @@ async def get_tasks_by_project(
     Условия:
     - due_date < сегодня
     - статус НЕ DONE и НЕ CANCELLED
-    """
+    """,
 )
-async def get_overdue_tasks(
-    service: TaskService = Depends(get_task_service)
-) -> List[TaskResponse]:
+async def get_overdue_tasks(service: TaskService = Depends(get_task_service)) -> list[TaskResponse]:
     """
     Получить просроченные задачи.
 
@@ -446,6 +408,7 @@ async def get_overdue_tasks(
 # MANAGE TAGS
 # ============================================================================
 
+
 @router.post(
     "/{task_id}/tags",
     response_model=TaskDetailResponse,
@@ -459,12 +422,10 @@ async def get_overdue_tasks(
     responses={
         200: {"description": "Теги добавлены"},
         404: {"model": ErrorResponse, "description": "Задача не найдена"},
-    }
+    },
 )
 async def add_tags_to_task(
-    task_id: int,
-    tag_names: List[str],
-    service: TaskService = Depends(get_task_service)
+    task_id: int, tag_names: list[str], service: TaskService = Depends(get_task_service)
 ) -> TaskDetailResponse:
     """
     Добавить теги к задаче.
@@ -478,10 +439,7 @@ async def add_tags_to_task(
         task = await service.add_tags_to_task(task_id, tag_names)
         return TaskDetailResponse.model_validate(task)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.delete(
@@ -491,12 +449,10 @@ async def add_tags_to_task(
     responses={
         200: {"description": "Тег удалён"},
         404: {"model": ErrorResponse, "description": "Задача или тег не найдены"},
-    }
+    },
 )
 async def remove_tag_from_task(
-    task_id: int,
-    tag_name: str,
-    service: TaskService = Depends(get_task_service)
+    task_id: int, tag_name: str, service: TaskService = Depends(get_task_service)
 ) -> TaskDetailResponse:
     """
     Удалить тег у задачи.
@@ -510,15 +466,13 @@ async def remove_tag_from_task(
         task = await service.remove_tag_from_task(task_id, tag_name)
         return TaskDetailResponse.model_validate(task)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ============================================================================
 # COMMENTS
 # ============================================================================
+
 
 @router.post(
     "/{task_id}/comments",
@@ -530,12 +484,10 @@ async def remove_tag_from_task(
         201: {"description": "Комментарий добавлен"},
         400: {"model": ErrorResponse, "description": "Комментарий пустой"},
         404: {"model": ErrorResponse, "description": "Задача не найдена"},
-    }
+    },
 )
 async def add_comment(
-    task_id: int,
-    data: CommentCreate,
-    service: TaskService = Depends(get_task_service)
+    task_id: int, data: CommentCreate, service: TaskService = Depends(get_task_service)
 ) -> CommentResponse:
     """
     Добавить комментарий к задаче.
@@ -554,20 +506,15 @@ async def add_comment(
         return CommentResponse.model_validate(comment)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # TASK HIERARCHY
 # ============================================================================
+
 
 @router.get(
     "/{task_id}/hierarchy",
@@ -579,12 +526,9 @@ async def add_comment(
     - Подзадачи
 
     Полезно для отображения дерева задач.
-    """
+    """,
 )
-async def get_task_hierarchy(
-    task_id: int,
-    service: TaskService = Depends(get_task_service)
-):
+async def get_task_hierarchy(task_id: int, service: TaskService = Depends(get_task_service)):
     """
     Получить иерархию задачи.
 
@@ -603,20 +547,20 @@ async def get_task_hierarchy(
     try:
         hierarchy = await service.get_task_hierarchy(task_id)
         return {
-            "parent": TaskResponse.model_validate(hierarchy["parent"]) if hierarchy["parent"] else None,
+            "parent": TaskResponse.model_validate(hierarchy["parent"])
+            if hierarchy["parent"]
+            else None,
             "task": TaskResponse.model_validate(hierarchy["task"]),
-            "subtasks": [TaskResponse.model_validate(t) for t in hierarchy["subtasks"]]
+            "subtasks": [TaskResponse.model_validate(t) for t in hierarchy["subtasks"]],
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ============================================================================
 # TASK STATISTICS
 # ============================================================================
+
 
 @router.get(
     "/{task_id}/stats",
@@ -627,12 +571,9 @@ async def get_task_hierarchy(
     - Количество комментариев
     - Количество тегов
     - Статус дедлайна
-    """
+    """,
 )
-async def get_task_statistics(
-    task_id: int,
-    service: TaskService = Depends(get_task_service)
-):
+async def get_task_statistics(task_id: int, service: TaskService = Depends(get_task_service)):
     """
     Получить статистику по задаче.
 
@@ -654,7 +595,4 @@ async def get_task_statistics(
         stats = await service.get_task_statistics(task_id)
         return stats
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

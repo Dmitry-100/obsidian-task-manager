@@ -1,8 +1,8 @@
 """Task comment repository with specific queries."""
 
-from typing import List, Optional
 from datetime import datetime, timedelta
-from sqlalchemy import select, and_
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import TaskComment
@@ -19,11 +19,7 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
     def __init__(self, db: AsyncSession):
         super().__init__(TaskComment, db)
 
-    async def get_by_task(
-        self,
-        task_id: int,
-        limit: Optional[int] = None
-    ) -> List[TaskComment]:
+    async def get_by_task(self, task_id: int, limit: int | None = None) -> list[TaskComment]:
         """
         Получить все комментарии для задачи.
 
@@ -59,11 +55,7 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_recent_comments(
-        self,
-        days: int = 7,
-        limit: int = 50
-    ) -> List[TaskComment]:
+    async def get_recent_comments(self, days: int = 7, limit: int = 50) -> list[TaskComment]:
         """
         Получить недавние комментарии.
 
@@ -95,10 +87,8 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
         return list(result.scalars().all())
 
     async def search_comments(
-        self,
-        search_term: str,
-        task_id: Optional[int] = None
-    ) -> List[TaskComment]:
+        self, search_term: str, task_id: int | None = None
+    ) -> list[TaskComment]:
         """
         Поиск по содержимому комментариев.
 
@@ -126,9 +116,7 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
         if task_id is not None:
             conditions.append(TaskComment.task_id == task_id)
 
-        result = await self.db.execute(
-            select(TaskComment).where(and_(*conditions))
-        )
+        result = await self.db.execute(select(TaskComment).where(and_(*conditions)))
         return list(result.scalars().all())
 
     async def count_by_task(self, task_id: int) -> int:
@@ -147,9 +135,7 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
         from sqlalchemy import func
 
         result = await self.db.execute(
-            select(func.count())
-            .select_from(TaskComment)
-            .where(TaskComment.task_id == task_id)
+            select(func.count()).select_from(TaskComment).where(TaskComment.task_id == task_id)
         )
         return result.scalar_one()
 
@@ -168,7 +154,5 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
         """
         from sqlalchemy import delete
 
-        result = await self.db.execute(
-            delete(TaskComment).where(TaskComment.task_id == task_id)
-        )
+        result = await self.db.execute(delete(TaskComment).where(TaskComment.task_id == task_id))
         return result.rowcount

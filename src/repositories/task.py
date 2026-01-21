@@ -1,12 +1,12 @@
 """Task repository with specific queries."""
 
-from typing import List, Optional
-from datetime import datetime, date
-from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import selectinload
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date, datetime
 
-from ..models import Task, TaskStatus, TaskPriority, Tag
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from ..models import Tag, Task, TaskPriority, TaskStatus
 from .base import BaseRepository
 
 
@@ -24,7 +24,7 @@ class TaskRepository(BaseRepository[Task]):
     def __init__(self, db: AsyncSession):
         super().__init__(Task, db)
 
-    async def get_by_id_full(self, id: int) -> Optional[Task]:
+    async def get_by_id_full(self, id: int) -> Task | None:
         """
         Получить задачу со ВСЕМИ связанными данными (eager loading).
 
@@ -61,11 +61,7 @@ class TaskRepository(BaseRepository[Task]):
         )
         return result.scalar_one_or_none()
 
-    async def get_by_project(
-        self,
-        project_id: int,
-        include_completed: bool = True
-    ) -> List[Task]:
+    async def get_by_project(self, project_id: int, include_completed: bool = True) -> list[Task]:
         """
         Получить все задачи проекта.
 
@@ -86,16 +82,13 @@ class TaskRepository(BaseRepository[Task]):
         if not include_completed:
             # Исключаем завершённые и отменённые
             query = query.where(
-                and_(
-                    Task.status != TaskStatus.DONE,
-                    Task.status != TaskStatus.CANCELLED
-                )
+                and_(Task.status != TaskStatus.DONE, Task.status != TaskStatus.CANCELLED)
             )
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_by_status(self, status: TaskStatus) -> List[Task]:
+    async def get_by_status(self, status: TaskStatus) -> list[Task]:
         """
         Получить все задачи с определённым статусом.
 
@@ -108,12 +101,10 @@ class TaskRepository(BaseRepository[Task]):
         Пример:
             in_progress_tasks = await repo.get_by_status(TaskStatus.IN_PROGRESS)
         """
-        result = await self.db.execute(
-            select(Task).where(Task.status == status)
-        )
+        result = await self.db.execute(select(Task).where(Task.status == status))
         return list(result.scalars().all())
 
-    async def get_by_priority(self, priority: TaskPriority) -> List[Task]:
+    async def get_by_priority(self, priority: TaskPriority) -> list[Task]:
         """
         Получить все задачи с определённым приоритетом.
 
@@ -123,12 +114,10 @@ class TaskRepository(BaseRepository[Task]):
         Returns:
             Список задач
         """
-        result = await self.db.execute(
-            select(Task).where(Task.priority == priority)
-        )
+        result = await self.db.execute(select(Task).where(Task.priority == priority))
         return list(result.scalars().all())
 
-    async def get_subtasks(self, parent_task_id: int) -> List[Task]:
+    async def get_subtasks(self, parent_task_id: int) -> list[Task]:
         """
         Получить все подзадачи для задачи.
 
@@ -147,12 +136,10 @@ class TaskRepository(BaseRepository[Task]):
               ├─ Задача #3: "Создать endpoints" (parent_task_id=1)
               └─ Задача #4: "Написать тесты" (parent_task_id=1)
         """
-        result = await self.db.execute(
-            select(Task).where(Task.parent_task_id == parent_task_id)
-        )
+        result = await self.db.execute(select(Task).where(Task.parent_task_id == parent_task_id))
         return list(result.scalars().all())
 
-    async def get_root_tasks(self, project_id: int) -> List[Task]:
+    async def get_root_tasks(self, project_id: int) -> list[Task]:
         """
         Получить задачи верхнего уровня (без родителя) для проекта.
 
@@ -175,17 +162,16 @@ class TaskRepository(BaseRepository[Task]):
                     print(f"  - {subtask.title}")
         """
         result = await self.db.execute(
-            select(Task)
-            .where(
+            select(Task).where(
                 and_(
                     Task.project_id == project_id,
-                    Task.parent_task_id.is_(None)  # IS NULL
+                    Task.parent_task_id.is_(None),  # IS NULL
                 )
             )
         )
         return list(result.scalars().all())
 
-    async def get_overdue_tasks(self) -> List[Task]:
+    async def get_overdue_tasks(self) -> list[Task]:
         """
         Получить все просроченные задачи.
 
@@ -203,13 +189,13 @@ class TaskRepository(BaseRepository[Task]):
             select(Task).where(
                 and_(
                     Task.due_date < today,
-                    Task.status.notin_([TaskStatus.DONE, TaskStatus.CANCELLED])
+                    Task.status.notin_([TaskStatus.DONE, TaskStatus.CANCELLED]),
                 )
             )
         )
         return list(result.scalars().all())
 
-    async def get_tasks_by_tag(self, tag_id: int) -> List[Task]:
+    async def get_tasks_by_tag(self, tag_id: int) -> list[Task]:
         """
         Получить все задачи с определённым тегом.
 
@@ -237,7 +223,7 @@ class TaskRepository(BaseRepository[Task]):
         )
         return list(result.scalars().all())
 
-    async def add_tag(self, task_id: int, tag: Tag) -> Optional[Task]:
+    async def add_tag(self, task_id: int, tag: Tag) -> Task | None:
         """
         Добавить тег к задаче.
 
@@ -255,9 +241,7 @@ class TaskRepository(BaseRepository[Task]):
         """
         # Load task with tags eagerly to avoid lazy loading issues
         result = await self.db.execute(
-            select(Task)
-            .options(selectinload(Task.tags))
-            .where(Task.id == task_id)
+            select(Task).options(selectinload(Task.tags)).where(Task.id == task_id)
         )
         task = result.scalar_one_or_none()
 
@@ -271,7 +255,7 @@ class TaskRepository(BaseRepository[Task]):
 
         return task
 
-    async def remove_tag(self, task_id: int, tag: Tag) -> Optional[Task]:
+    async def remove_tag(self, task_id: int, tag: Tag) -> Task | None:
         """
         Удалить тег у задачи.
 
@@ -284,9 +268,7 @@ class TaskRepository(BaseRepository[Task]):
         """
         # Load task with tags eagerly to avoid lazy loading issues
         result = await self.db.execute(
-            select(Task)
-            .options(selectinload(Task.tags))
-            .where(Task.id == task_id)
+            select(Task).options(selectinload(Task.tags)).where(Task.id == task_id)
         )
         task = result.scalar_one_or_none()
 
@@ -299,7 +281,7 @@ class TaskRepository(BaseRepository[Task]):
 
         return task
 
-    async def mark_as_done(self, task_id: int) -> Optional[Task]:
+    async def mark_as_done(self, task_id: int) -> Task | None:
         """
         Пометить задачу как выполненную.
 
@@ -313,13 +295,9 @@ class TaskRepository(BaseRepository[Task]):
         - status = DONE
         - completed_at = текущее время
         """
-        return await self.update(
-            task_id,
-            status=TaskStatus.DONE,
-            completed_at=datetime.utcnow()
-        )
+        return await self.update(task_id, status=TaskStatus.DONE, completed_at=datetime.utcnow())
 
-    async def search_by_title(self, search_term: str) -> List[Task]:
+    async def search_by_title(self, search_term: str) -> list[Task]:
         """
         Поиск задач по названию (регистронезависимый).
 
@@ -333,21 +311,17 @@ class TaskRepository(BaseRepository[Task]):
             SELECT * FROM tasks
             WHERE LOWER(title) LIKE LOWER('%{search_term}%');
         """
-        result = await self.db.execute(
-            select(Task).where(
-                Task.title.ilike(f"%{search_term}%")
-            )
-        )
+        result = await self.db.execute(select(Task).where(Task.title.ilike(f"%{search_term}%")))
         return list(result.scalars().all())
 
     async def get_filtered(
         self,
-        status: Optional[TaskStatus] = None,
-        priority: Optional[TaskPriority] = None,
-        project_id: Optional[int] = None,
+        status: TaskStatus | None = None,
+        priority: TaskPriority | None = None,
+        project_id: int | None = None,
         skip: int = 0,
-        limit: int = 20
-    ) -> List[Task]:
+        limit: int = 20,
+    ) -> list[Task]:
         """
         Получить задачи с фильтрами и пагинацией.
 

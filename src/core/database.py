@@ -1,10 +1,9 @@
 """Database connection and session management."""
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool, StaticPool
 
 from .config import settings
-
 
 # Create async engine
 # For SQLite, use StaticPool to avoid greenlet issues
@@ -14,7 +13,7 @@ if "sqlite" in settings.DATABASE_URL:
         settings.DATABASE_URL,
         echo=settings.DATABASE_ECHO,
         poolclass=StaticPool,  # SQLite requires StaticPool for async
-        connect_args={"check_same_thread": False}  # Allow multi-threaded access
+        connect_args={"check_same_thread": False},  # Allow multi-threaded access
     )
 else:
     engine = create_async_engine(

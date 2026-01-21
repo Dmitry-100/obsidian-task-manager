@@ -18,18 +18,16 @@ URL структура:
 - GET    /projects/{id}/stats     - статистика
 """
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ..services import ProjectService
 from .dependencies import get_project_service
 from .schemas import (
-    ProjectCreate,
-    ProjectUpdate,
-    ProjectResponse,
-    ProjectWithStats,
-    SuccessResponse,
     ErrorResponse,
+    ProjectCreate,
+    ProjectResponse,
+    ProjectUpdate,
+    ProjectWithStats,
 )
 
 # Создаём роутер для проектов
@@ -41,6 +39,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 # ============================================================================
 # CREATE PROJECT
 # ============================================================================
+
 
 @router.post(
     "",
@@ -57,11 +56,10 @@ router = APIRouter(prefix="/projects", tags=["projects"])
     responses={
         201: {"description": "Проект успешно создан"},
         400: {"model": ErrorResponse, "description": "Ошибка валидации"},
-    }
+    },
 )
 async def create_project(
-    data: ProjectCreate,
-    service: ProjectService = Depends(get_project_service)
+    data: ProjectCreate, service: ProjectService = Depends(get_project_service)
 ) -> ProjectResponse:
     """
     Создать новый проект.
@@ -80,24 +78,22 @@ async def create_project(
             name=data.name,
             description=data.description,
             obsidian_folder=data.obsidian_folder,
-            color=data.color
+            color=data.color,
         )
         return ProjectResponse.model_validate(project)
     except ValueError as e:
         # Service выбросил ошибку валидации
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # GET ALL PROJECTS (с пагинацией)
 # ============================================================================
 
+
 @router.get(
     "",
-    response_model=List[ProjectResponse],
+    response_model=list[ProjectResponse],
     summary="Получить список проектов",
     description="""
     Получить проекты с пагинацией и фильтрацией.
@@ -108,28 +104,25 @@ async def create_project(
 
     **Фильтрация:**
     - include_archived: включать ли архивные проекты
-    """
+    """,
 )
 async def get_projects(
     # Пагинация
     skip: int = Query(
         0,
         ge=0,  # >= 0 (не может быть отрицательным)
-        description="Количество записей для пропуска (offset)"
+        description="Количество записей для пропуска (offset)",
     ),
     limit: int = Query(
         20,
         ge=1,  # >= 1 (хотя бы одна запись)
         le=100,  # <= 100 (защита от слишком больших запросов)
-        description="Максимальное количество записей (1-100)"
+        description="Максимальное количество записей (1-100)",
     ),
     # Фильтрация
-    include_archived: bool = Query(
-        False,
-        description="Включать ли архивные проекты"
-    ),
-    service: ProjectService = Depends(get_project_service)
-) -> List[ProjectResponse]:
+    include_archived: bool = Query(False, description="Включать ли архивные проекты"),
+    service: ProjectService = Depends(get_project_service),
+) -> list[ProjectResponse]:
     """
     Получить список проектов с пагинацией.
 
@@ -146,9 +139,7 @@ async def get_projects(
     ```
     """
     projects = await service.get_all_projects(
-        include_archived=include_archived,
-        skip=skip,
-        limit=limit
+        include_archived=include_archived, skip=skip, limit=limit
     )
     return [ProjectResponse.model_validate(p) for p in projects]
 
@@ -157,6 +148,7 @@ async def get_projects(
 # GET PROJECT BY ID
 # ============================================================================
 
+
 @router.get(
     "/{project_id}",
     response_model=ProjectResponse,
@@ -164,11 +156,10 @@ async def get_projects(
     responses={
         200: {"description": "Проект найден"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def get_project(
-    project_id: int,
-    service: ProjectService = Depends(get_project_service)
+    project_id: int, service: ProjectService = Depends(get_project_service)
 ) -> ProjectResponse:
     """
     Получить проект по ID.
@@ -185,15 +176,13 @@ async def get_project(
         project = await service.get_project(project_id)
         return ProjectResponse.model_validate(project)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ============================================================================
 # UPDATE PROJECT
 # ============================================================================
+
 
 @router.put(
     "/{project_id}",
@@ -204,12 +193,10 @@ async def get_project(
         200: {"description": "Проект обновлён"},
         400: {"model": ErrorResponse, "description": "Ошибка валидации"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def update_project(
-    project_id: int,
-    data: ProjectUpdate,
-    service: ProjectService = Depends(get_project_service)
+    project_id: int, data: ProjectUpdate, service: ProjectService = Depends(get_project_service)
 ) -> ProjectResponse:
     """
     Обновить проект.
@@ -230,26 +217,21 @@ async def update_project(
             name=data.name,
             description=data.description,
             color=data.color,
-            obsidian_folder=data.obsidian_folder
+            obsidian_folder=data.obsidian_folder,
         )
         return ProjectResponse.model_validate(project)
     except ValueError as e:
         # Определяем тип ошибки по тексту
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # DELETE PROJECT
 # ============================================================================
+
 
 @router.delete(
     "/{project_id}",
@@ -265,15 +247,12 @@ async def update_project(
         204: {"description": "Проект удалён"},
         400: {"model": ErrorResponse, "description": "Проект имеет задачи"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def delete_project(
     project_id: int,
-    force: bool = Query(
-        False,
-        description="Принудительное удаление (с задачами)"
-    ),
-    service: ProjectService = Depends(get_project_service)
+    force: bool = Query(False, description="Принудительное удаление (с задачами)"),
+    service: ProjectService = Depends(get_project_service),
 ):
     """
     Удалить проект.
@@ -291,20 +270,15 @@ async def delete_project(
         # 204 No Content - не возвращаем тело ответа
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # ARCHIVE PROJECT
 # ============================================================================
+
 
 @router.post(
     "/{project_id}/archive",
@@ -315,11 +289,10 @@ async def delete_project(
         200: {"description": "Проект архивирован"},
         400: {"model": ErrorResponse, "description": "Проект уже архивирован"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def archive_project(
-    project_id: int,
-    service: ProjectService = Depends(get_project_service)
+    project_id: int, service: ProjectService = Depends(get_project_service)
 ) -> ProjectResponse:
     """
     Архивировать проект (мягкое удаление).
@@ -339,20 +312,15 @@ async def archive_project(
         return ProjectResponse.model_validate(project)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # UNARCHIVE PROJECT
 # ============================================================================
+
 
 @router.post(
     "/{project_id}/unarchive",
@@ -362,11 +330,10 @@ async def archive_project(
         200: {"description": "Проект восстановлен"},
         400: {"model": ErrorResponse, "description": "Проект не архивирован"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def unarchive_project(
-    project_id: int,
-    service: ProjectService = Depends(get_project_service)
+    project_id: int, service: ProjectService = Depends(get_project_service)
 ) -> ProjectResponse:
     """
     Восстановить проект из архива.
@@ -381,20 +348,15 @@ async def unarchive_project(
         return ProjectResponse.model_validate(project)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # GET PROJECT STATISTICS
 # ============================================================================
+
 
 @router.get(
     "/{project_id}/stats",
@@ -411,11 +373,10 @@ async def unarchive_project(
     responses={
         200: {"description": "Статистика получена"},
         404: {"model": ErrorResponse, "description": "Проект не найден"},
-    }
+    },
 )
 async def get_project_statistics(
-    project_id: int,
-    service: ProjectService = Depends(get_project_service)
+    project_id: int, service: ProjectService = Depends(get_project_service)
 ) -> ProjectWithStats:
     """
     Получить статистику по проекту.
@@ -437,7 +398,4 @@ async def get_project_statistics(
         stats = await service.get_project_statistics(project_id)
         return ProjectWithStats(**stats)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

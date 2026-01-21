@@ -15,18 +15,17 @@ API документация:
     Старые пути (/projects, /tasks, /tags) также поддерживаются для обратной совместимости.
 """
 
-from fastapi import FastAPI, Depends, Request, APIRouter
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from .core.config import settings
-from .api import projects_router, tasks_router, tags_router
-from .api.errors import register_error_handlers
+from .api import projects_router, tags_router, tasks_router
 from .api.dependencies import verify_api_key
-
+from .api.errors import register_error_handlers
+from .core.config import settings
 
 # ============================================================================
 # RATE LIMITER SETUP
@@ -37,7 +36,7 @@ from .api.dependencies import verify_api_key
 limiter = Limiter(key_func=get_remote_address)
 
 
-def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """
     Кастомный обработчик превышения лимита запросов.
 
@@ -49,11 +48,9 @@ def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
             "error": {
                 "code": "RATE_LIMIT_EXCEEDED",
                 "message": f"Слишком много запросов. Лимит: {exc.detail}",
-                "details": [
-                    {"field": "rate_limit", "message": str(exc.detail)}
-                ]
+                "details": [{"field": "rate_limit", "message": str(exc.detail)}],
             }
-        }
+        },
     )
 
 
@@ -107,7 +104,8 @@ app = FastAPI(
 
 # Подключаем rate limiter к приложению
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
+# slowapi handler имеет специфичный тип, но работает корректно
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 
 # ============================================================================
@@ -143,28 +141,17 @@ api_v1_router.include_router(tags_router)
 
 # Подключаем версионированный API (/api/v1/...)
 # dependencies=[Depends(verify_api_key)] - все endpoints роутера требуют авторизации
-app.include_router(
-    api_v1_router,
-    dependencies=[Depends(verify_api_key)]
-)
+app.include_router(api_v1_router, dependencies=[Depends(verify_api_key)])
 
 # Для обратной совместимости оставляем старые пути без /api/v1
 # В будущем можно убрать (deprecated)
 app.include_router(
     projects_router,
     dependencies=[Depends(verify_api_key)],
-    deprecated=True  # Помечаем как deprecated в документации
+    deprecated=True,  # Помечаем как deprecated в документации
 )
-app.include_router(
-    tasks_router,
-    dependencies=[Depends(verify_api_key)],
-    deprecated=True
-)
-app.include_router(
-    tags_router,
-    dependencies=[Depends(verify_api_key)],
-    deprecated=True
-)
+app.include_router(tasks_router, dependencies=[Depends(verify_api_key)], deprecated=True)
+app.include_router(tags_router, dependencies=[Depends(verify_api_key)], deprecated=True)
 
 # Регистрируем обработчики ошибок для единого формата
 register_error_handlers(app)
@@ -174,12 +161,8 @@ register_error_handlers(app)
 # ROOT ENDPOINT
 # ============================================================================
 
-@app.get(
-    "/",
-    tags=["root"],
-    summary="Root endpoint",
-    description="Информация о API"
-)
+
+@app.get("/", tags=["root"], summary="Root endpoint", description="Информация о API")
 @limiter.limit("100/minute")
 async def root(request: Request):
     """
@@ -205,7 +188,7 @@ async def root(request: Request):
             "tags": "/tags (use /api/v1/tags)",
         },
         "rate_limit": "100 requests/minute",
-        "description": "Task Manager для Obsidian Second Brain"
+        "description": "Task Manager для Obsidian Second Brain",
     }
 
 
@@ -213,11 +196,9 @@ async def root(request: Request):
 # HEALTH CHECK
 # ============================================================================
 
+
 @app.get(
-    "/health",
-    tags=["health"],
-    summary="Health check",
-    description="Проверка работоспособности API"
+    "/health", tags=["health"], summary="Health check", description="Проверка работоспособности API"
 )
 @limiter.limit("100/minute")
 async def health_check(request: Request):
@@ -238,13 +219,14 @@ async def health_check(request: Request):
     return {
         "status": "healthy",
         "database": "not_checked",  # можно добавить проверку
-        "rate_limit": "100/minute"
+        "rate_limit": "100/minute",
     }
 
 
 # ============================================================================
 # STARTUP/SHUTDOWN EVENTS
 # ============================================================================
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -257,10 +239,10 @@ async def startup_event():
     - Установить соединения
     """
     print(f"🚀 {settings.APP_NAME} started!")
-    print(f"📚 Docs: http://localhost:8000/docs")
-    print(f"📖 ReDoc: http://localhost:8000/redoc")
-    print(f"🔒 Rate Limit: 100 requests/minute")
-    print(f"📦 API v1: http://localhost:8000/api/v1/")
+    print("📚 Docs: http://localhost:8000/docs")
+    print("📖 ReDoc: http://localhost:8000/redoc")
+    print("🔒 Rate Limit: 100 requests/minute")
+    print("📦 API v1: http://localhost:8000/api/v1/")
 
 
 @app.on_event("shutdown")

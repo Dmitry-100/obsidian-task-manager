@@ -1,6 +1,5 @@
 """Project service with business logic."""
 
-from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Project
@@ -33,9 +32,9 @@ class ProjectService:
     async def create_project(
         self,
         name: str,
-        description: Optional[str] = None,
-        obsidian_folder: Optional[str] = None,
-        color: Optional[str] = None
+        description: str | None = None,
+        obsidian_folder: str | None = None,
+        color: str | None = None,
     ) -> Project:
         """
         Создать новый проект с валидацией.
@@ -124,10 +123,10 @@ class ProjectService:
     async def update_project(
         self,
         project_id: int,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        color: Optional[str] = None,
-        obsidian_folder: Optional[str] = None
+        name: str | None = None,
+        description: str | None = None,
+        color: str | None = None,
+        obsidian_folder: str | None = None,
     ) -> Project:
         """
         Обновить проект.
@@ -254,11 +253,8 @@ class ProjectService:
         return deleted
 
     async def get_all_projects(
-        self,
-        include_archived: bool = False,
-        skip: int = 0,
-        limit: int = 20
-    ) -> List[Project]:
+        self, include_archived: bool = False, skip: int = 0, limit: int = 20
+    ) -> list[Project]:
         """
         Получить все проекты с пагинацией.
 
@@ -332,5 +328,6 @@ class ProjectService:
             True если валидный hex цвет
         """
         import re
-        pattern = r'^#[0-9A-Fa-f]{6}$'
+
+        pattern = r"^#[0-9A-Fa-f]{6}$"
         return bool(re.match(pattern, color))

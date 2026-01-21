@@ -3,7 +3,7 @@
 from .base import Base, TimestampMixin
 from .project import Project
 from .tag import Tag
-from .task import Task, TaskStatus, TaskPriority
+from .task import Task, TaskPriority, TaskStatus
 from .task_comment import TaskComment
 from .task_tag import task_tags
 

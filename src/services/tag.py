@@ -1,6 +1,5 @@
 """Tag service with business logic."""
 
-from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Tag
@@ -102,7 +101,7 @@ class TagService:
             raise ValueError(f"Tag with id {tag_id} not found")
         return tag
 
-    async def get_tag_by_name(self, name: str) -> Optional[Tag]:
+    async def get_tag_by_name(self, name: str) -> Tag | None:
         """
         Получить тег по названию.
 
@@ -115,7 +114,7 @@ class TagService:
         normalized_name = self._normalize_tag_name(name)
         return await self.tag_repo.get_by_name(normalized_name)
 
-    async def get_all_tags(self) -> List[Tag]:
+    async def get_all_tags(self) -> list[Tag]:
         """
         Получить все теги.
 
@@ -124,7 +123,7 @@ class TagService:
         """
         return await self.tag_repo.get_all()
 
-    async def get_popular_tags(self, limit: int = 10) -> List[tuple[Tag, int]]:
+    async def get_popular_tags(self, limit: int = 10) -> list[tuple[Tag, int]]:
         """
         Получить самые популярные теги.
 
@@ -141,7 +140,7 @@ class TagService:
         """
         return await self.tag_repo.get_popular_tags(limit)
 
-    async def get_unused_tags(self) -> List[Tag]:
+    async def get_unused_tags(self) -> list[Tag]:
         """
         Получить неиспользуемые теги.
 
@@ -192,11 +191,7 @@ class TagService:
 
         return tag
 
-    async def merge_tags(
-        self,
-        source_tag_id: int,
-        target_tag_id: int
-    ) -> Tag:
+    async def merge_tags(self, source_tag_id: int, target_tag_id: int) -> Tag:
         """
         Объединить два тега в один.
 
@@ -244,11 +239,7 @@ class TagService:
 
         return target_tag
 
-    async def delete_tag(
-        self,
-        tag_id: int,
-        force: bool = False
-    ) -> bool:
+    async def delete_tag(self, tag_id: int, force: bool = False) -> bool:
         """
         Удалить тег.
 
@@ -304,7 +295,7 @@ class TagService:
 
         return count
 
-    async def search_tags(self, query: str) -> List[Tag]:
+    async def search_tags(self, query: str) -> list[Tag]:
         """
         Поиск тегов по названию.
 
@@ -396,12 +387,12 @@ class TagService:
         normalized = normalized.replace(" ", "-")
 
         # 3. Оставляем только буквы, цифры, дефисы, подчёркивания
-        normalized = re.sub(r'[^a-z0-9\-_]', '', normalized)
+        normalized = re.sub(r"[^a-z0-9\-_]", "", normalized)
 
         # 4. Множественные дефисы → один дефис
-        normalized = re.sub(r'-+', '-', normalized)
+        normalized = re.sub(r"-+", "-", normalized)
 
         # 5. Убрать дефисы с краёв
-        normalized = normalized.strip('-')
+        normalized = normalized.strip("-")
 
         return normalized

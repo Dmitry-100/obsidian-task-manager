@@ -1,8 +1,8 @@
 """Service layer with business logic."""
 
 from .project import ProjectService
-from .task import TaskService
 from .tag import TagService
+from .task import TaskService
 
 __all__ = [
     "ProjectService",

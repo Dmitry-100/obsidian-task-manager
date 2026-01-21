@@ -1,9 +1,9 @@
 """Tag model."""
 
 from datetime import datetime
-from sqlalchemy import String, DateTime
+
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List
 
 from .base import Base
 
@@ -18,11 +18,7 @@ class Tag(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    tasks: Mapped[List["Task"]] = relationship(
-        "Task",
-        secondary="task_tags",
-        back_populates="tags"
-    )
+    tasks: Mapped[list["Task"]] = relationship("Task", secondary="task_tags", back_populates="tags")
 
     def __repr__(self) -> str:
         return f"<Tag(id={self.id}, name='{self.name}')>"

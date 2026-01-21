@@ -1,0 +1,163 @@
+# =============================================================================
+# pyproject.toml - Конфигурация инструментов Python
+# =============================================================================
+# Этот файл используется для настройки:
+# - ruff (линтер и форматтер)
+# - mypy (проверка типов)
+# - pytest (тестирование)
+# - и других инструментов
+#
+# Преимущество: все настройки в одном месте вместо множества файлов
+# =============================================================================
+
+[project]
+name = "obsidian-task-manager"
+version = "1.0.0"
+description = "Task Manager для интеграции с Obsidian Second Brain"
+requires-python = ">=3.11"
+
+# =============================================================================
+# RUFF - Линтер и форматтер
+# =============================================================================
+# Ruff заменяет: Flake8, isort, Black, и многие другие инструменты
+# Документация: https://docs.astral.sh/ruff/
+
+[tool.ruff]
+# Максимальная длина строки (стандарт PEP8 = 79, но 100 удобнее)
+line-length = 100
+
+# Целевая версия Python (для проверки совместимости синтаксиса)
+target-version = "py311"
+
+# Папки для исключения из проверки
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "migrations",      # Alembic миграции - автогенерируемый код
+    ".pytest_cache",
+]
+
+# Игнорируем F821 для файлов моделей (forward references в SQLAlchemy)
+[tool.ruff.lint.per-file-ignores]
+"src/models/*.py" = ["F821"]  # Forward references: Mapped["Task"] и т.д.
+
+[tool.ruff.lint]
+# Включённые правила:
+# E = pycodestyle errors (стиль кода)
+# F = Pyflakes (логические ошибки)
+# I = isort (сортировка импортов)
+# W = pycodestyle warnings
+# UP = pyupgrade (современный Python)
+# B = flake8-bugbear (частые баги)
+# SIM = flake8-simplify (упрощение кода)
+select = ["E", "F", "I", "W", "UP", "B", "SIM"]
+
+# Игнорируемые правила (с объяснением почему):
+ignore = [
+    "E501",   # Длина строки - ruff format сам это исправит
+    "B008",   # Вызов функции в default аргументе - нужно для FastAPI Depends()
+    "B904",   # raise ... from err - слишком строго для учебного проекта
+    "E712",   # == True/False - нужно для SQLAlchemy фильтров
+]
+
+# Разрешить автоисправление для этих правил
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+# Настройки сортировки импортов
+known-first-party = ["src"]  # Наш код считается "first-party"
+
+[tool.ruff.format]
+# Настройки форматирования (как Black)
+quote-style = "double"           # Двойные кавычки для строк
+indent-style = "space"           # Пробелы, не табы
+line-ending = "auto"             # Автоопределение концов строк
+
+# =============================================================================
+# MYPY - Проверка типов
+# =============================================================================
+# Mypy проверяет type hints и находит ошибки типов
+# Документация: https://mypy.readthedocs.io/
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = false          # Отключаем для учебного проекта
+warn_unused_ignores = true       # Предупреждать о ненужных # type: ignore
+disallow_untyped_defs = false    # НЕ требовать типы везде (слишком строго)
+ignore_missing_imports = true    # Игнорировать библиотеки без типов
+check_untyped_defs = false       # Не проверять функции без аннотаций
+strict_optional = false          # Мягче с Optional типами
+
+# Исключения для папок
+exclude = [
+    "venv",
+    "migrations",
+]
+
+# Игнорируем ошибки в сложных модулях (Generic, SQLAlchemy)
+[[tool.mypy.overrides]]
+module = [
+    "src.repositories.*",
+    "src.models.*",
+    "src.core.database",
+]
+ignore_errors = true
+
+# =============================================================================
+# PYTEST - Тестирование
+# =============================================================================
+# Документация: https://docs.pytest.org/
+
+[tool.pytest.ini_options]
+# Папка с тестами
+testpaths = ["tests"]
+
+# Паттерн для файлов тестов
+python_files = ["test_*.py"]
+
+# Паттерн для функций тестов
+python_functions = ["test_*"]
+
+# Включить asyncio mode для async тестов
+asyncio_mode = "auto"
+
+# Флаги по умолчанию
+addopts = [
+    "-v",                    # Verbose output
+    "--tb=short",            # Короткий traceback при ошибках
+    "--strict-markers",      # Строгая проверка маркеров
+]
+
+# Маркеры для группировки тестов
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+# =============================================================================
+# COVERAGE - Покрытие тестами
+# =============================================================================
+
+[tool.coverage.run]
+# Папка для измерения покрытия
+source = ["src"]
+
+# Исключить из покрытия
+omit = [
+    "*/migrations/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+# Минимальный процент покрытия (fail если ниже)
+# fail_under = 60  # Раскомментировать когда достигнем цели
+
+# Исключить из отчёта строки, которые невозможно покрыть
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

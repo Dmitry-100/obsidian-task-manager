@@ -1,10 +1,9 @@
 """Tag repository with specific queries."""
 
-from typing import List, Optional
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Tag, Task
+from ..models import Tag
 from .base import BaseRepository
 
 
@@ -19,7 +18,7 @@ class TagRepository(BaseRepository[Tag]):
     def __init__(self, db: AsyncSession):
         super().__init__(Tag, db)
 
-    async def get_by_name(self, name: str) -> Optional[Tag]:
+    async def get_by_name(self, name: str) -> Tag | None:
         """
         Получить тег по имени.
 
@@ -35,9 +34,7 @@ class TagRepository(BaseRepository[Tag]):
         Пример:
             urgent_tag = await repo.get_by_name("urgent")
         """
-        result = await self.db.execute(
-            select(Tag).where(Tag.name == name)
-        )
+        result = await self.db.execute(select(Tag).where(Tag.name == name))
         return result.scalar_one_or_none()
 
     async def get_or_create(self, name: str) -> Tag:
@@ -68,7 +65,7 @@ class TagRepository(BaseRepository[Tag]):
 
         return tag
 
-    async def get_popular_tags(self, limit: int = 10) -> List[tuple[Tag, int]]:
+    async def get_popular_tags(self, limit: int = 10) -> list[tuple[Tag, int]]:
         """
         Получить самые популярные теги (по количеству использований).
 
@@ -109,7 +106,7 @@ class TagRepository(BaseRepository[Tag]):
         # result возвращает кортежи (Tag, count)
         return [(row[0], row[1]) for row in result.all()]
 
-    async def get_unused_tags(self) -> List[Tag]:
+    async def get_unused_tags(self) -> list[Tag]:
         """
         Получить неиспользуемые теги (не привязаны ни к одной задаче).
 
@@ -133,7 +130,7 @@ class TagRepository(BaseRepository[Tag]):
         )
         return list(result.scalars().all())
 
-    async def search_tags(self, search_term: str) -> List[Tag]:
+    async def search_tags(self, search_term: str) -> list[Tag]:
         """
         Поиск тегов по имени.
 
@@ -147,12 +144,10 @@ class TagRepository(BaseRepository[Tag]):
             SELECT * FROM tags
             WHERE LOWER(name) LIKE LOWER('%{search_term}%');
         """
-        result = await self.db.execute(
-            select(Tag).where(Tag.name.ilike(f"%{search_term}%"))
-        )
+        result = await self.db.execute(select(Tag).where(Tag.name.ilike(f"%{search_term}%")))
         return list(result.scalars().all())
 
-    async def bulk_get_or_create(self, tag_names: List[str]) -> List[Tag]:
+    async def bulk_get_or_create(self, tag_names: list[str]) -> list[Tag]:
         """
         Массовое получение/создание тегов.
 
@@ -172,9 +167,7 @@ class TagRepository(BaseRepository[Tag]):
             )
         """
         # Получаем все существующие теги за один запрос
-        result = await self.db.execute(
-            select(Tag).where(Tag.name.in_(tag_names))
-        )
+        result = await self.db.execute(select(Tag).where(Tag.name.in_(tag_names)))
         existing_tags = list(result.scalars().all())
         existing_names = {tag.name for tag in existing_tags}
 

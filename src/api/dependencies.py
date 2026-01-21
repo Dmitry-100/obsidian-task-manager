@@ -23,15 +23,15 @@ Dependency Injection (DI) - паттерн для автоматического
 4. Единообразие во всех endpoints
 """
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.database import AsyncSessionLocal
 from ..core.config import settings
-from ..services import ProjectService, TaskService, TagService
-
+from ..core.database import AsyncSessionLocal
+from ..services import ProjectService, TagService, TaskService
 
 # ============================================================================
 # API KEY AUTHENTICATION
@@ -42,13 +42,11 @@ from ..services import ProjectService, TaskService, TagService
 api_key_header = APIKeyHeader(
     name="X-API-Key",
     auto_error=False,  # Не выбрасывать ошибку автоматически, мы сами обработаем
-    description="API ключ для авторизации. Передавайте в заголовке X-API-Key"
+    description="API ключ для авторизации. Передавайте в заголовке X-API-Key",
 )
 
 
-async def verify_api_key(
-    api_key: str = Depends(api_key_header)
-) -> str:
+async def verify_api_key(api_key: str = Depends(api_key_header)) -> str:
     """
     Dependency для проверки API ключа.
 
@@ -74,7 +72,7 @@ async def verify_api_key(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key is missing. Add header: X-API-Key: your-key",
-            headers={"WWW-Authenticate": "ApiKey"}
+            headers={"WWW-Authenticate": "ApiKey"},
         )
 
     # Если ключ неверный
@@ -82,7 +80,7 @@ async def verify_api_key(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
-            headers={"WWW-Authenticate": "ApiKey"}
+            headers={"WWW-Authenticate": "ApiKey"},
         )
 
     # Ключ верный - возвращаем его (можно использовать для логирования)
@@ -92,6 +90,7 @@ async def verify_api_key(
 # ============================================================================
 # DATABASE SESSION DEPENDENCY
 # ============================================================================
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -128,9 +127,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 # SERVICE DEPENDENCIES
 # ============================================================================
 
-async def get_project_service(
-    db: AsyncSession = Depends(get_db)
-) -> ProjectService:
+
+async def get_project_service(db: AsyncSession = Depends(get_db)) -> ProjectService:
     """
     Dependency для ProjectService.
 
@@ -154,9 +152,7 @@ async def get_project_service(
     return ProjectService(db)
 
 
-async def get_task_service(
-    db: AsyncSession = Depends(get_db)
-) -> TaskService:
+async def get_task_service(db: AsyncSession = Depends(get_db)) -> TaskService:
     """
     Dependency для TaskService.
 
@@ -170,9 +166,7 @@ async def get_task_service(
     return TaskService(db)
 
 
-async def get_tag_service(
-    db: AsyncSession = Depends(get_db)
-) -> TagService:
+async def get_tag_service(db: AsyncSession = Depends(get_db)) -> TagService:
     """
     Dependency для TagService.
 

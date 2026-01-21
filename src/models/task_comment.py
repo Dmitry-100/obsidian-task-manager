@@ -1,7 +1,8 @@
 """Task comment model."""
 
 from datetime import datetime
-from sqlalchemy import Text, Integer, ForeignKey, DateTime
+
+from sqlalchemy import DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base

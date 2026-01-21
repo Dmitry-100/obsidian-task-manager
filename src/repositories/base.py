@@ -1,7 +1,8 @@
 """Base repository with common CRUD operations."""
 
-from typing import Generic, TypeVar, Type, Optional, List, Any
-from sqlalchemy import select, update, delete
+from typing import Any, Generic, TypeVar
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.base import Base
@@ -22,7 +23,7 @@ class BaseRepository(Generic[ModelType]):
         project = await project_repo.get_by_id(1)
     """
 
-    def __init__(self, model: Type[ModelType], db: AsyncSession):
+    def __init__(self, model: type[ModelType], db: AsyncSession):
         """
         Инициализация репозитория.
 
@@ -53,7 +54,7 @@ class BaseRepository(Generic[ModelType]):
         await self.db.refresh(obj)  # refresh() обновляет obj данными из БД (ID, timestamps)
         return obj
 
-    async def get_by_id(self, id: int) -> Optional[ModelType]:
+    async def get_by_id(self, id: int) -> ModelType | None:
         """
         Получить объект по ID.
 
@@ -66,16 +67,10 @@ class BaseRepository(Generic[ModelType]):
         SQL эквивалент:
             SELECT * FROM table WHERE id = {id} LIMIT 1;
         """
-        result = await self.db.execute(
-            select(self.model).where(self.model.id == id)
-        )
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
         return result.scalar_one_or_none()
 
-    async def get_all(
-        self,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[ModelType]:
+    async def get_all(self, skip: int = 0, limit: int = 100) -> list[ModelType]:
         """
         Получить все записи с пагинацией.
 
@@ -96,12 +91,10 @@ class BaseRepository(Generic[ModelType]):
             # Страница 2 (записи 11-20)
             page2 = await repo.get_all(skip=10, limit=10)
         """
-        result = await self.db.execute(
-            select(self.model).offset(skip).limit(limit)
-        )
+        result = await self.db.execute(select(self.model).offset(skip).limit(limit))
         return list(result.scalars().all())
 
-    async def update(self, id: int, **kwargs: Any) -> Optional[ModelType]:
+    async def update(self, id: int, **kwargs: Any) -> ModelType | None:
         """
         Обновить запись по ID.
 
@@ -154,9 +147,7 @@ class BaseRepository(Generic[ModelType]):
         SQL эквивалент:
             DELETE FROM table WHERE id={id};
         """
-        result = await self.db.execute(
-            delete(self.model).where(self.model.id == id)
-        )
+        result = await self.db.execute(delete(self.model).where(self.model.id == id))
         return result.rowcount > 0  # rowcount - количество затронутых строк
 
     async def exists(self, id: int) -> bool:
@@ -187,7 +178,5 @@ class BaseRepository(Generic[ModelType]):
         """
         from sqlalchemy import func
 
-        result = await self.db.execute(
-            select(func.count()).select_from(self.model)
-        )
+        result = await self.db.execute(select(func.count()).select_from(self.model))
         return result.scalar_one()

@@ -10,23 +10,26 @@ DTOs (Data Transfer Objects) - объекты для передачи данны
 4. Версионирование API (можем менять схемы без изменения БД)
 """
 
-from datetime import datetime, date
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from datetime import date, datetime
 
-from ..models import TaskStatus, TaskPriority
+from pydantic import BaseModel, ConfigDict, Field
 
+from ..models import TaskPriority, TaskStatus
 
 # ============================================================================
 # PROJECT SCHEMAS
 # ============================================================================
 
+
 class ProjectBase(BaseModel):
     """Базовые поля проекта (общие для Create и Update)."""
+
     name: str = Field(..., min_length=1, max_length=200, description="Название проекта")
-    description: Optional[str] = Field(None, description="Описание проекта")
-    obsidian_folder: Optional[str] = Field(None, max_length=500, description="Путь к папке в Obsidian")
-    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$', description="Цвет в формате #RRGGBB")
+    description: str | None = Field(None, description="Описание проекта")
+    obsidian_folder: str | None = Field(None, max_length=500, description="Путь к папке в Obsidian")
+    color: str | None = Field(
+        None, pattern=r"^#[0-9A-Fa-f]{6}$", description="Цвет в формате #RRGGBB"
+    )
 
 
 class ProjectCreate(ProjectBase):
@@ -40,6 +43,7 @@ class ProjectCreate(ProjectBase):
         "color": "#3B82F6"
     }
     """
+
     pass
 
 
@@ -55,10 +59,11 @@ class ProjectUpdate(BaseModel):
         "color": "#FF0000"
     }
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    obsidian_folder: Optional[str] = Field(None, max_length=500)
-    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
+
+    name: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = None
+    obsidian_folder: str | None = Field(None, max_length=500)
+    color: str | None = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
 
 
 class ProjectResponse(ProjectBase):
@@ -81,6 +86,7 @@ class ProjectResponse(ProjectBase):
         "updated_at": "2026-01-18T12:00:00"
     }
     """
+
     id: int
     is_archived: bool
     created_at: datetime
@@ -98,6 +104,7 @@ class ProjectWithStats(ProjectResponse):
 
     Используется для GET /projects/{id}/stats
     """
+
     total_tasks: int
     completed_tasks: int
     in_progress_tasks: int
@@ -109,15 +116,17 @@ class ProjectWithStats(ProjectResponse):
 # TASK SCHEMAS
 # ============================================================================
 
+
 class TaskBase(BaseModel):
     """Базовые поля задачи."""
+
     title: str = Field(..., min_length=1, max_length=300, description="Название задачи")
-    description: Optional[str] = Field(None, description="Описание задачи")
+    description: str | None = Field(None, description="Описание задачи")
     status: TaskStatus = Field(default=TaskStatus.TODO, description="Статус задачи")
     priority: TaskPriority = Field(default=TaskPriority.MEDIUM, description="Приоритет")
-    due_date: Optional[date] = Field(None, description="Дедлайн")
-    obsidian_path: Optional[str] = Field(None, max_length=1000, description="Путь к файлу в Obsidian")
-    estimated_hours: Optional[float] = Field(None, gt=0, description="Оценка времени (часы)")
+    due_date: date | None = Field(None, description="Дедлайн")
+    obsidian_path: str | None = Field(None, max_length=1000, description="Путь к файлу в Obsidian")
+    estimated_hours: float | None = Field(None, gt=0, description="Оценка времени (часы)")
 
 
 class TaskCreate(TaskBase):
@@ -138,9 +147,10 @@ class TaskCreate(TaskBase):
         "tag_names": ["python", "fastapi", "backend"]
     }
     """
+
     project_id: int = Field(..., description="ID проекта")
-    parent_task_id: Optional[int] = Field(None, description="ID родительской задачи (для подзадач)")
-    tag_names: Optional[List[str]] = Field(default=[], description="Список названий тегов")
+    parent_task_id: int | None = Field(None, description="ID родительской задачи (для подзадач)")
+    tag_names: list[str] | None = Field(default=[], description="Список названий тегов")
 
 
 class TaskUpdate(BaseModel):
@@ -149,12 +159,13 @@ class TaskUpdate(BaseModel):
 
     Все поля опциональные.
     """
-    title: Optional[str] = Field(None, min_length=1, max_length=300)
-    description: Optional[str] = None
-    status: Optional[TaskStatus] = None
-    priority: Optional[TaskPriority] = None
-    due_date: Optional[date] = None
-    estimated_hours: Optional[float] = Field(None, gt=0)
+
+    title: str | None = Field(None, min_length=1, max_length=300)
+    description: str | None = None
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    due_date: date | None = None
+    estimated_hours: float | None = Field(None, gt=0)
 
 
 class TagResponse(BaseModel):
@@ -163,6 +174,7 @@ class TagResponse(BaseModel):
 
     Используется внутри TaskResponse.
     """
+
     id: int
     name: str
     created_at: datetime
@@ -176,6 +188,7 @@ class CommentResponse(BaseModel):
 
     Используется внутри TaskResponse.
     """
+
     id: int
     task_id: int
     content: str
@@ -193,15 +206,16 @@ class TaskResponse(TaskBase):
     - Связанные объекты (теги, проект)
     - Метаданные (id, timestamps)
     """
+
     id: int
     project_id: int
-    parent_task_id: Optional[int]
-    completed_at: Optional[datetime]
+    parent_task_id: int | None
+    completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
     # Связанные объекты (опционально загружаются)
-    tags: List[TagResponse] = []
+    tags: list[TagResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -217,13 +231,15 @@ class TaskDetailResponse(TaskResponse):
     - Подзадачи
     - Информацию о проекте
     """
-    comments: List[CommentResponse] = []
+
+    comments: list[CommentResponse] = []
     # subtasks можно добавить, если нужно
 
 
 # ============================================================================
 # TAG SCHEMAS
 # ============================================================================
+
 
 class TagCreate(BaseModel):
     """
@@ -236,11 +252,13 @@ class TagCreate(BaseModel):
 
     Будет нормализовано в: "python-programming"
     """
+
     name: str = Field(..., min_length=1, max_length=50, description="Название тега")
 
 
 class TagUpdate(BaseModel):
     """Схема для обновления тега."""
+
     name: str = Field(..., min_length=1, max_length=50)
 
 
@@ -250,12 +268,14 @@ class TagWithUsage(TagResponse):
 
     Используется для GET /tags/popular
     """
+
     usage_count: int = Field(..., description="Количество задач с этим тегом")
 
 
 # ============================================================================
 # COMMENT SCHEMAS
 # ============================================================================
+
 
 class CommentCreate(BaseModel):
     """
@@ -266,12 +286,14 @@ class CommentCreate(BaseModel):
         "content": "Нашёл баг в авторизации"
     }
     """
+
     content: str = Field(..., min_length=1, description="Содержимое комментария (Markdown)")
 
 
 # ============================================================================
 # COMMON SCHEMAS
 # ============================================================================
+
 
 class ErrorDetail(BaseModel):
     """
@@ -285,6 +307,7 @@ class ErrorDetail(BaseModel):
         "message": "Некорректный формат email"
     }
     """
+
     field: str = Field(..., description="Название поля с ошибкой")
     message: str = Field(..., description="Описание ошибки")
 
@@ -304,11 +327,11 @@ class ErrorBody(BaseModel):
     - ALREADY_EXISTS: ресурс уже существует
     - INTERNAL_ERROR: внутренняя ошибка сервера
     """
+
     code: str = Field(..., description="Код ошибки (VALIDATION_ERROR, NOT_FOUND, etc.)")
     message: str = Field(..., description="Человекочитаемое сообщение")
-    details: Optional[List[ErrorDetail]] = Field(
-        default=None,
-        description="Список ошибок по полям (для валидации)"
+    details: list[ErrorDetail] | None = Field(
+        default=None, description="Список ошибок по полям (для валидации)"
     )
 
 
@@ -337,6 +360,7 @@ class ErrorResponse(BaseModel):
         }
     }
     """
+
     error: ErrorBody
 
 
@@ -350,6 +374,7 @@ class SimpleErrorResponse(BaseModel):
         "detail": "Project not found"
     }
     """
+
     detail: str
 
 
@@ -362,6 +387,7 @@ class SuccessResponse(BaseModel):
         "message": "Project archived successfully"
     }
     """
+
     message: str
 
 
@@ -371,7 +397,8 @@ class PaginatedResponse(BaseModel):
 
     Generic схема для списков с пагинацией.
     """
-    items: List  # Список элементов (любого типа)
+
+    items: list  # Список элементов (любого типа)
     total: int  # Всего элементов
     skip: int  # Пропущено
     limit: int  # Лимит на странице

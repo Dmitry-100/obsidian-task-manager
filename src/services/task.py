@@ -1,15 +1,16 @@
 """Task service with business logic."""
 
-from typing import List, Optional
 from datetime import date, datetime
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Task, TaskStatus, TaskPriority, TaskComment
+from ..models import Task, TaskComment, TaskPriority, TaskStatus
 from ..repositories import (
-    TaskRepository,
     ProjectRepository,
     TagRepository,
     TaskCommentRepository,
+    TaskRepository,
 )
 
 
@@ -36,14 +37,14 @@ class TaskService:
         self,
         title: str,
         project_id: int,
-        description: Optional[str] = None,
-        parent_task_id: Optional[int] = None,
+        description: str | None = None,
+        parent_task_id: int | None = None,
         status: TaskStatus = TaskStatus.TODO,
         priority: TaskPriority = TaskPriority.MEDIUM,
-        due_date: Optional[date] = None,
-        tag_names: Optional[List[str]] = None,
-        obsidian_path: Optional[str] = None,
-        estimated_hours: Optional[float] = None,
+        due_date: date | None = None,
+        tag_names: list[str] | None = None,
+        obsidian_path: str | None = None,
+        estimated_hours: float | None = None,
     ) -> Task:
         """
         Создать новую задачу с валидацией бизнес-правил.
@@ -100,9 +101,7 @@ class TaskService:
 
             # 5. ВАЛИДАЦИЯ: Нельзя создать подзадачу для подзадачи (максимум 2 уровня)
             if parent_task.parent_task_id is not None:
-                raise ValueError(
-                    "Cannot create subtask of subtask. Maximum 2 levels allowed."
-                )
+                raise ValueError("Cannot create subtask of subtask. Maximum 2 levels allowed.")
 
         # 6. ВАЛИДАЦИЯ: Дедлайн не в прошлом
         if due_date and due_date < date.today():
@@ -166,12 +165,12 @@ class TaskService:
     async def update_task(
         self,
         task_id: int,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        status: Optional[TaskStatus] = None,
-        priority: Optional[TaskPriority] = None,
-        due_date: Optional[date] = None,
-        estimated_hours: Optional[float] = None,
+        title: str | None = None,
+        description: str | None = None,
+        status: TaskStatus | None = None,
+        priority: TaskPriority | None = None,
+        due_date: date | None = None,
+        estimated_hours: float | None = None,
     ) -> Task:
         """
         Обновить задачу.
@@ -211,7 +210,7 @@ class TaskService:
             raise ValueError("Estimated hours must be positive")
 
         # 5. ОБНОВЛЕНИЕ: Собираем изменения
-        updates = {}
+        updates: dict[str, Any] = {}  # Any потому что значения разных типов
         if title:
             updates["title"] = title.strip()
         if description is not None:
@@ -260,8 +259,7 @@ class TaskService:
 
         # ВАЛИДАЦИЯ: Проверить подзадачи
         incomplete_subtasks = [
-            st for st in task.subtasks
-            if st.status not in [TaskStatus.DONE, TaskStatus.CANCELLED]
+            st for st in task.subtasks if st.status not in [TaskStatus.DONE, TaskStatus.CANCELLED]
         ]
 
         if incomplete_subtasks:
@@ -276,11 +274,7 @@ class TaskService:
 
         return await self.task_repo.get_by_id_full(task_id)
 
-    async def add_tags_to_task(
-        self,
-        task_id: int,
-        tag_names: List[str]
-    ) -> Task:
+    async def add_tags_to_task(self, task_id: int, tag_names: list[str]) -> Task:
         """
         Добавить теги к задаче.
 
@@ -295,7 +289,8 @@ class TaskService:
         - Автоматически создаёт несуществующие теги
         - Не дублирует теги
         """
-        task = await self.get_task(task_id)
+        # Проверяем, что задача существует (get_task выбросит ValueError если нет)
+        _task = await self.get_task(task_id)
 
         # КООРДИНАЦИЯ: Получить/создать теги
         tags = await self.tag_repo.bulk_get_or_create(tag_names)
@@ -308,11 +303,7 @@ class TaskService:
 
         return await self.task_repo.get_by_id_full(task_id)
 
-    async def remove_tag_from_task(
-        self,
-        task_id: int,
-        tag_name: str
-    ) -> Task:
+    async def remove_tag_from_task(self, task_id: int, tag_name: str) -> Task:
         """
         Удалить тег у задачи.
 
@@ -326,7 +317,8 @@ class TaskService:
         Raises:
             ValueError: Если тег не найден
         """
-        task = await self.get_task(task_id)
+        # Проверяем, что задача существует
+        _task = await self.get_task(task_id)
 
         # ПОИСК: Найти тег
         tag = await self.tag_repo.get_by_name(tag_name)
@@ -339,11 +331,7 @@ class TaskService:
 
         return await self.task_repo.get_by_id_full(task_id)
 
-    async def add_comment(
-        self,
-        task_id: int,
-        content: str
-    ) -> TaskComment:
+    async def add_comment(self, task_id: int, content: str) -> TaskComment:
         """
         Добавить комментарий к задаче.
 
@@ -365,10 +353,7 @@ class TaskService:
             raise ValueError("Comment content cannot be empty")
 
         # СОЗДАНИЕ: Создать комментарий
-        comment = TaskComment(
-            task_id=task_id,
-            content=content.strip()
-        )
+        comment = TaskComment(task_id=task_id, content=content.strip())
 
         comment = await self.comment_repo.create(comment)
         await self.db.flush()
@@ -404,7 +389,7 @@ class TaskService:
             "subtasks": task.subtasks,
         }
 
-    async def get_overdue_tasks(self) -> List[Task]:
+    async def get_overdue_tasks(self) -> list[Task]:
         """
         Получить все просроченные задачи.
 
@@ -418,11 +403,8 @@ class TaskService:
         return await self.task_repo.get_overdue_tasks()
 
     async def get_tasks_by_project(
-        self,
-        project_id: int,
-        include_completed: bool = False,
-        root_only: bool = False
-    ) -> List[Task]:
+        self, project_id: int, include_completed: bool = False, root_only: bool = False
+    ) -> list[Task]:
         """
         Получить задачи проекта с фильтрами.
 
@@ -447,15 +429,10 @@ class TaskService:
             return await self.task_repo.get_root_tasks(project_id)
         else:
             return await self.task_repo.get_by_project(
-                project_id,
-                include_completed=include_completed
+                project_id, include_completed=include_completed
             )
 
-    async def delete_task(
-        self,
-        task_id: int,
-        force: bool = False
-    ) -> bool:
+    async def delete_task(self, task_id: int, force: bool = False) -> bool:
         """
         Удалить задачу.
 
@@ -510,7 +487,6 @@ class TaskService:
                 "days_until_due": 5
             }
         """
-        from datetime import timedelta
 
         task = await self.task_repo.get_by_id_full(task_id)
         if not task:
@@ -518,9 +494,7 @@ class TaskService:
 
         # Подсчёт подзадач
         total_subtasks = len(task.subtasks)
-        completed_subtasks = sum(
-            1 for st in task.subtasks if st.status == TaskStatus.DONE
-        )
+        completed_subtasks = sum(1 for st in task.subtasks if st.status == TaskStatus.DONE)
 
         # Подсчёт комментариев
         comments_count = await self.comment_repo.count_by_task(task_id)
@@ -546,12 +520,12 @@ class TaskService:
 
     async def get_tasks_filtered(
         self,
-        status: Optional[TaskStatus] = None,
-        priority: Optional[TaskPriority] = None,
-        project_id: Optional[int] = None,
+        status: TaskStatus | None = None,
+        priority: TaskPriority | None = None,
+        project_id: int | None = None,
         skip: int = 0,
-        limit: int = 20
-    ) -> List[Task]:
+        limit: int = 20,
+    ) -> list[Task]:
         """
         Получить задачи с фильтрами и пагинацией.
 
@@ -576,9 +550,5 @@ class TaskService:
             )
         """
         return await self.task_repo.get_filtered(
-            status=status,
-            priority=priority,
-            project_id=project_id,
-            skip=skip,
-            limit=limit
+            status=status, priority=priority, project_id=project_id, skip=skip, limit=limit
         )

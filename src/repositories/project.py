@@ -1,9 +1,8 @@
 """Project repository with specific queries."""
 
-from typing import List, Optional
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models import Project
 from .base import BaseRepository
@@ -29,7 +28,7 @@ class ProjectRepository(BaseRepository[Project]):
         """
         super().__init__(Project, db)
 
-    async def get_by_id_with_tasks(self, id: int) -> Optional[Project]:
+    async def get_by_id_with_tasks(self, id: int) -> Project | None:
         """
         Получить проект с загруженными задачами (eager loading).
 
@@ -57,11 +56,7 @@ class ProjectRepository(BaseRepository[Project]):
         )
         return result.scalar_one_or_none()
 
-    async def get_active_projects(
-        self,
-        skip: int = 0,
-        limit: int = 20
-    ) -> List[Project]:
+    async def get_active_projects(self, skip: int = 0, limit: int = 20) -> list[Project]:
         """
         Получить активные (не архивированные) проекты с пагинацией.
 
@@ -78,26 +73,21 @@ class ProjectRepository(BaseRepository[Project]):
             OFFSET {skip} LIMIT {limit};
         """
         result = await self.db.execute(
-            select(Project)
-            .where(Project.is_archived == False)
-            .offset(skip)
-            .limit(limit)
+            select(Project).where(Project.is_archived == False).offset(skip).limit(limit)
         )
         return list(result.scalars().all())
 
-    async def get_archived_projects(self) -> List[Project]:
+    async def get_archived_projects(self) -> list[Project]:
         """
         Получить все архивированные проекты.
 
         Returns:
             Список архивированных проектов
         """
-        result = await self.db.execute(
-            select(Project).where(Project.is_archived == True)
-        )
+        result = await self.db.execute(select(Project).where(Project.is_archived == True))
         return list(result.scalars().all())
 
-    async def archive_project(self, id: int) -> Optional[Project]:
+    async def archive_project(self, id: int) -> Project | None:
         """
         Архивировать проект (soft delete).
 
@@ -112,7 +102,7 @@ class ProjectRepository(BaseRepository[Project]):
         """
         return await self.update(id, is_archived=True)
 
-    async def unarchive_project(self, id: int) -> Optional[Project]:
+    async def unarchive_project(self, id: int) -> Project | None:
         """
         Разархивировать проект.
 
@@ -124,7 +114,7 @@ class ProjectRepository(BaseRepository[Project]):
         """
         return await self.update(id, is_archived=False)
 
-    async def get_by_obsidian_folder(self, folder_path: str) -> Optional[Project]:
+    async def get_by_obsidian_folder(self, folder_path: str) -> Project | None:
         """
         Найти проект по пути к папке Obsidian.
 
@@ -144,7 +134,7 @@ class ProjectRepository(BaseRepository[Project]):
         )
         return result.scalar_one_or_none()
 
-    async def search_by_name(self, search_term: str) -> List[Project]:
+    async def search_by_name(self, search_term: str) -> list[Project]:
         """
         Поиск проектов по имени (регистронезависимый, частичное совпадение).
 

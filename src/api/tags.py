@@ -5,17 +5,16 @@ API endpoints для работы с тегами.
 Автоматическая нормализация названий (lowercase, пробелы → дефисы).
 """
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ..services import TagService
 from .dependencies import get_tag_service
 from .schemas import (
-    TagCreate,
-    TagUpdate,
-    TagResponse,
-    TagWithUsage,
     ErrorResponse,
+    TagCreate,
+    TagResponse,
+    TagUpdate,
+    TagWithUsage,
 )
 
 router = APIRouter(prefix="/tags", tags=["tags"])
@@ -25,14 +24,9 @@ router = APIRouter(prefix="/tags", tags=["tags"])
 # GET ALL TAGS
 # ============================================================================
 
-@router.get(
-    "",
-    response_model=List[TagResponse],
-    summary="Получить все теги"
-)
-async def get_tags(
-    service: TagService = Depends(get_tag_service)
-) -> List[TagResponse]:
+
+@router.get("", response_model=list[TagResponse], summary="Получить все теги")
+async def get_tags(service: TagService = Depends(get_tag_service)) -> list[TagResponse]:
     """
     Получить список всех тегов.
 
@@ -49,16 +43,17 @@ async def get_tags(
 # GET POPULAR TAGS
 # ============================================================================
 
+
 @router.get(
     "/popular",
-    response_model=List[TagWithUsage],
+    response_model=list[TagWithUsage],
     summary="Получить популярные теги",
-    description="Получить самые используемые теги с количеством задач."
+    description="Получить самые используемые теги с количеством задач.",
 )
 async def get_popular_tags(
     limit: int = Query(10, ge=1, le=100, description="Количество тегов"),
-    service: TagService = Depends(get_tag_service)
-) -> List[TagWithUsage]:
+    service: TagService = Depends(get_tag_service),
+) -> list[TagWithUsage]:
     """
     Получить популярные теги.
 
@@ -81,12 +76,7 @@ async def get_popular_tags(
     """
     tags_with_usage = await service.get_popular_tags(limit)
     return [
-        TagWithUsage(
-            id=tag.id,
-            name=tag.name,
-            created_at=tag.created_at,
-            usage_count=count
-        )
+        TagWithUsage(id=tag.id, name=tag.name, created_at=tag.created_at, usage_count=count)
         for tag, count in tags_with_usage
     ]
 
@@ -95,15 +85,14 @@ async def get_popular_tags(
 # GET UNUSED TAGS
 # ============================================================================
 
+
 @router.get(
     "/unused",
-    response_model=List[TagResponse],
+    response_model=list[TagResponse],
     summary="Получить неиспользуемые теги",
-    description="Получить теги, не привязанные ни к одной задаче."
+    description="Получить теги, не привязанные ни к одной задаче.",
 )
-async def get_unused_tags(
-    service: TagService = Depends(get_tag_service)
-) -> List[TagResponse]:
+async def get_unused_tags(service: TagService = Depends(get_tag_service)) -> list[TagResponse]:
     """
     Получить неиспользуемые теги.
 
@@ -121,6 +110,7 @@ async def get_unused_tags(
 # ============================================================================
 # CREATE TAG
 # ============================================================================
+
 
 @router.post(
     "",
@@ -143,11 +133,10 @@ async def get_unused_tags(
     responses={
         201: {"description": "Тег создан"},
         400: {"model": ErrorResponse, "description": "Тег уже существует"},
-    }
+    },
 )
 async def create_tag(
-    data: TagCreate,
-    service: TagService = Depends(get_tag_service)
+    data: TagCreate, service: TagService = Depends(get_tag_service)
 ) -> TagResponse:
     """
     Создать новый тег.
@@ -165,15 +154,13 @@ async def create_tag(
         tag = await service.create_tag(data.name)
         return TagResponse.model_validate(tag)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # GET TAG BY ID
 # ============================================================================
+
 
 @router.get(
     "/{tag_id}",
@@ -182,12 +169,9 @@ async def create_tag(
     responses={
         200: {"description": "Тег найден"},
         404: {"model": ErrorResponse, "description": "Тег не найден"},
-    }
+    },
 )
-async def get_tag(
-    tag_id: int,
-    service: TagService = Depends(get_tag_service)
-) -> TagResponse:
+async def get_tag(tag_id: int, service: TagService = Depends(get_tag_service)) -> TagResponse:
     """
     Получить тег по ID.
 
@@ -200,15 +184,13 @@ async def get_tag(
         tag = await service.get_tag(tag_id)
         return TagResponse.model_validate(tag)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ============================================================================
 # UPDATE TAG
 # ============================================================================
+
 
 @router.put(
     "/{tag_id}",
@@ -223,12 +205,10 @@ async def get_tag(
         200: {"description": "Тег переименован"},
         400: {"model": ErrorResponse, "description": "Новое имя уже существует"},
         404: {"model": ErrorResponse, "description": "Тег не найден"},
-    }
+    },
 )
 async def rename_tag(
-    tag_id: int,
-    data: TagUpdate,
-    service: TagService = Depends(get_tag_service)
+    tag_id: int, data: TagUpdate, service: TagService = Depends(get_tag_service)
 ) -> TagResponse:
     """
     Переименовать тег.
@@ -247,20 +227,15 @@ async def rename_tag(
         return TagResponse.model_validate(tag)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # DELETE TAG
 # ============================================================================
+
 
 @router.delete(
     "/{tag_id}",
@@ -276,12 +251,12 @@ async def rename_tag(
         204: {"description": "Тег удалён"},
         400: {"model": ErrorResponse, "description": "Тег используется в задачах"},
         404: {"model": ErrorResponse, "description": "Тег не найден"},
-    }
+    },
 )
 async def delete_tag(
     tag_id: int,
     force: bool = Query(False, description="Принудительное удаление"),
-    service: TagService = Depends(get_tag_service)
+    service: TagService = Depends(get_tag_service),
 ):
     """
     Удалить тег.
@@ -298,20 +273,15 @@ async def delete_tag(
         await service.delete_tag(tag_id, force=force)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # MERGE TAGS
 # ============================================================================
+
 
 @router.post(
     "/{source_tag_id}/merge/{target_tag_id}",
@@ -331,12 +301,10 @@ async def delete_tag(
         200: {"description": "Теги объединены"},
         400: {"model": ErrorResponse, "description": "Теги одинаковые"},
         404: {"model": ErrorResponse, "description": "Тег не найден"},
-    }
+    },
 )
 async def merge_tags(
-    source_tag_id: int,
-    target_tag_id: int,
-    service: TagService = Depends(get_tag_service)
+    source_tag_id: int, target_tag_id: int, service: TagService = Depends(get_tag_service)
 ) -> TagResponse:
     """
     Объединить два тега.
@@ -358,29 +326,22 @@ async def merge_tags(
         return TagResponse.model_validate(tag)
     except ValueError as e:
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================================
 # CLEANUP UNUSED TAGS
 # ============================================================================
 
+
 @router.post(
     "/cleanup",
     summary="Удалить все неиспользуемые теги",
-    description="Удалить все теги, не привязанные ни к одной задаче."
+    description="Удалить все теги, не привязанные ни к одной задаче.",
 )
-async def cleanup_unused_tags(
-    service: TagService = Depends(get_tag_service)
-):
+async def cleanup_unused_tags(service: TagService = Depends(get_tag_service)):
     """
     Удалить все неиспользуемые теги.
 
@@ -406,6 +367,7 @@ async def cleanup_unused_tags(
 # TAG STATISTICS
 # ============================================================================
 
+
 @router.get(
     "/{tag_id}/stats",
     summary="Получить статистику тега",
@@ -415,12 +377,9 @@ async def cleanup_unused_tags(
     - Завершённые задачи
     - Задачи в работе
     - Задачи к выполнению
-    """
+    """,
 )
-async def get_tag_statistics(
-    tag_id: int,
-    service: TagService = Depends(get_tag_service)
-):
+async def get_tag_statistics(tag_id: int, service: TagService = Depends(get_tag_service)):
     """
     Получить статистику по тегу.
 
@@ -440,7 +399,4 @@ async def get_tag_statistics(
         stats = await service.get_tag_statistics(tag_id)
         return stats
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
