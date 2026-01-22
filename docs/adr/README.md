@@ -54,6 +54,12 @@ Architecture Decision Record (ADR) - это документ, который ф�
    - Поддержка обеих БД
    - Разные pool strategies
 
+### Frontend
+
+17. **[ADR-0017: Frontend Framework Selection](0017-frontend-framework-selection.md)**
+    - Выбор React + TypeScript + Vite
+    - TailwindCSS, shadcn/ui, TanStack Query
+
 ### Работа с данными
 
 7. **[ADR-0007: Transaction Management (flush vs commit)](0007-transaction-management-flush-vs-commit.md)**
@@ -195,9 +201,10 @@ ADR-0008 (SQLAlchemy)
 
 ## Статистика
 
-- **Всего ADR**: 16
+- **Всего ADR**: 17
 - **Architectural Patterns**: 4 (ADR-0001 to ADR-0004)
-- **Tech Stack**: 4 (ADR-0005, ADR-0006, ADR-0008, ADR-0011)
+- **Tech Stack Backend**: 4 (ADR-0005, ADR-0006, ADR-0008, ADR-0011)
+- **Tech Stack Frontend**: 1 (ADR-0017)
 - **Data Management**: 4 (ADR-0007, ADR-0009, ADR-0010, ADR-0015)
 - **Business Logic**: 2 (ADR-0013, ADR-0014)
 - **Infrastructure**: 2 (ADR-0012, ADR-0016)

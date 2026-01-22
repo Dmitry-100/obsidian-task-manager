@@ -6,12 +6,34 @@ Task Manager для интеграции с Obsidian Second Brain.
 
 ## Возможности
 
-- Управление проектами
+- Управление проектами (CRUD)
 - Создание задач и подзадач
 - Теги из Obsidian
 - Комментарии к задачам
 - Связь с файлами Obsidian
 - REST API (FastAPI)
+- **Web Dashboard (React)**
+
+## Архитектура
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (React)                      │
+│  Dashboard │ Projects │ Tasks │ Settings                │
+│  React + TypeScript + TailwindCSS + TanStack Query      │
+└─────────────────────┬───────────────────────────────────┘
+                      │ HTTP/REST
+┌─────────────────────▼───────────────────────────────────┐
+│                    Backend (FastAPI)                     │
+│  API Layer → Service Layer → Repository Layer           │
+│  FastAPI + SQLAlchemy 2.0 + Pydantic                    │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────┐
+│                    Database                              │
+│  PostgreSQL / SQLite                                     │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Модель данных
 
@@ -21,13 +43,17 @@ Projects → Tasks (с подзадачами) → Comments
               Tags (M:M)
 ```
 
-## Установка
+## Быстрый старт
+
+### 1. Backend
 
 ```bash
+# Клонировать репозиторий
+git clone https://github.com/Dmitry-100/obsidian-task-manager.git
+cd obsidian-task-manager
+
 # Создать виртуальное окружение
 python3 -m venv venv
-
-# Активировать
 source venv/bin/activate  # macOS/Linux
 
 # Установить зависимости
@@ -35,40 +61,49 @@ pip install -r requirements.txt
 
 # Настроить .env
 cp config/.env.example config/.env
+
+# Применить миграции
+alembic upgrade head
+
+# Запустить сервер
+uvicorn src.main:app --reload
+# Backend работает на http://localhost:8000
 ```
+
+### 2. Frontend
+
+```bash
+# Перейти в директорию frontend
+cd frontend
+
+# Установить зависимости
+npm install
+
+# Настроить .env
+cp .env.example .env.local
+
+# Запустить dev сервер
+npm run dev
+# Frontend работает на http://localhost:5173
+```
+
+### 3. Открыть приложение
+
+- **Web Dashboard:** http://localhost:5173
+- **API Docs (Swagger):** http://localhost:8000/docs
+- **API Docs (ReDoc):** http://localhost:8000/redoc
 
 ## Настройка базы данных
 
 ```bash
-# 1. Установить PostgreSQL (если ещё нет)
+# PostgreSQL
 brew install postgresql  # macOS
-
-# 2. Запустить PostgreSQL
 brew services start postgresql
-
-# 3. Создать базу данных
 createdb obsidian_tasks
 
-# 4. Настроить .env файл
-cp config/.env.example config/.env
-# Отредактировать config/.env с корректными данными БД
-
-# 5. Применить миграции
-alembic upgrade head
-```
-
-## Запуск
-
-```bash
-# Активировать виртуальное окружение
-source venv/bin/activate
-
-# Запустить сервер в режиме разработки
-uvicorn src.main:app --reload
-
-# Открыть документацию API
-open http://localhost:8000/docs  # Swagger UI
-open http://localhost:8000/redoc # ReDoc
+# Или SQLite (для разработки)
+# Просто установите в .env:
+# DATABASE_URL=sqlite:///./obsidian_tasks.db
 ```
 
 ## Авторизация
@@ -91,26 +126,75 @@ API_KEY=your-secret-key-here
 - `GET /` - информация об API
 - `GET /health` - health check
 
-## Примеры использования API
-
-- **curl примеры:** [api_examples.md](api_examples.md)
-- **Postman коллекция:** [postman_collection.json](postman_collection.json) - импортируйте в Postman
-
-## Структура
+## Структура проекта
 
 ```
-src/
-├── models/          # SQLAlchemy модели
-├── repositories/    # Data Layer
-├── services/        # Business Layer
-├── api/            # API Layer
-└── core/           # Database, config
+obsidian-task-manager/
+├── src/                    # Backend (Python/FastAPI)
+│   ├── api/               # API endpoints
+│   ├── services/          # Business logic
+│   ├── repositories/      # Data access
+│   ├── models/            # SQLAlchemy models
+│   └── core/              # Config, database
+│
+├── frontend/              # Frontend (React/TypeScript)
+│   ├── src/
+│   │   ├── pages/        # Dashboard, Projects, Tasks, Settings
+│   │   ├── components/   # UI components (shadcn/ui)
+│   │   ├── api/          # API client
+│   │   ├── hooks/        # React Query hooks
+│   │   └── types/        # TypeScript types
+│   └── ...
+│
+├── tests/                 # Backend tests
+├── migrations/            # Alembic migrations
+├── docs/                  # Documentation
+│   └── adr/              # Architecture Decision Records
+└── config/               # Configuration files
 ```
 
 ## Технологии
 
-- FastAPI
-- SQLAlchemy 2.0
-- PostgreSQL
-- Alembic (миграции)
-- Pydantic
+### Backend
+- **FastAPI** — современный async веб-фреймворк
+- **SQLAlchemy 2.0** — ORM с async поддержкой
+- **PostgreSQL / SQLite** — база данных
+- **Alembic** — миграции
+- **Pydantic** — валидация данных
+- **pytest** — тестирование
+
+### Frontend
+- **React 18** — UI библиотека
+- **TypeScript** — типизация
+- **Vite** — сборщик
+- **TailwindCSS** — стили
+- **shadcn/ui** — UI компоненты
+- **TanStack Query** — серверное состояние
+- **React Router** — навигация
+
+## Документация
+
+- **[API Examples](api_examples.md)** — примеры curl запросов
+- **[Architecture Decisions](docs/adr/)** — ADR документы
+- **[Frontend README](frontend/README.md)** — документация frontend
+- **[Contributing](CONTRIBUTING.md)** — как контрибьютить
+
+## Разработка
+
+```bash
+# Backend: запуск с hot reload
+uvicorn src.main:app --reload
+
+# Frontend: запуск dev сервера
+cd frontend && npm run dev
+
+# Backend: запуск тестов
+pytest
+
+# Frontend: сборка production
+cd frontend && npm run build
+```
+
+## Лицензия
+
+MIT
