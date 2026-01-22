@@ -15,6 +15,9 @@ API документация:
     Старые пути (/projects, /tasks, /tags) также поддерживаются для обратной совместимости.
 """
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -55,10 +58,37 @@ def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
 
 
 # ============================================================================
+# LIFESPAN EVENT HANDLER
+# ============================================================================
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    Lifespan context manager for startup/shutdown events.
+
+    Startup: инициализация ресурсов
+    Shutdown: освобождение ресурсов
+    """
+    # Startup
+    print(f"🚀 {settings.APP_NAME} started!")
+    print("📚 Docs: http://localhost:8000/docs")
+    print("📖 ReDoc: http://localhost:8000/redoc")
+    print("🔒 Rate Limit: 100 requests/minute")
+    print("📦 API v1: http://localhost:8000/api/v1/")
+
+    yield  # Application runs here
+
+    # Shutdown
+    print(f"👋 {settings.APP_NAME} stopped!")
+
+
+# ============================================================================
 # CREATE APPLICATION
 # ============================================================================
 
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.APP_NAME,
     description="""
     Task Manager для интеграции с Obsidian Second Brain.
@@ -223,41 +253,6 @@ async def health_check(request: Request):
         "database": "not_checked",  # можно добавить проверку
         "rate_limit": "100/minute",
     }
-
-
-# ============================================================================
-# STARTUP/SHUTDOWN EVENTS
-# ============================================================================
-
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Событие при запуске приложения.
-
-    Здесь можно:
-    - Инициализировать БД
-    - Загрузить кэши
-    - Установить соединения
-    """
-    print(f"🚀 {settings.APP_NAME} started!")
-    print("📚 Docs: http://localhost:8000/docs")
-    print("📖 ReDoc: http://localhost:8000/redoc")
-    print("🔒 Rate Limit: 100 requests/minute")
-    print("📦 API v1: http://localhost:8000/api/v1/")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Событие при остановке приложения.
-
-    Здесь можно:
-    - Закрыть соединения с БД
-    - Сохранить кэши
-    - Освободить ресурсы
-    """
-    print(f"👋 {settings.APP_NAME} stopped!")
 
 
 # ============================================================================
