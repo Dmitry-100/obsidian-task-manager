@@ -13,6 +13,7 @@ Task Manager для интеграции с Obsidian Second Brain.
 - Связь с файлами Obsidian
 - REST API (FastAPI)
 - **Web Dashboard (React)**
+- **Obsidian Sync Integration** — двусторонняя синхронизация с Tasks Plugin
 
 ## Архитектура
 
@@ -41,6 +42,55 @@ Task Manager для интеграции с Obsidian Second Brain.
 Projects → Tasks (с подзадачами) → Comments
                 ↓
               Tags (M:M)
+```
+
+## Obsidian Sync Integration
+
+Двусторонняя синхронизация задач с Obsidian Tasks Plugin.
+
+### Возможности
+
+- **Импорт** — парсинг задач из markdown файлов Obsidian
+- **Экспорт** — запись задач обратно в Obsidian формате
+- **Conflict Resolution** — UI для разрешения конфликтов
+- **Project Mapping** — автоматическое определение проекта по тегам/папкам/секциям
+
+### Поддерживаемый формат Tasks Plugin
+
+```markdown
+- [ ] Задача 🔼 📅 2026-01-25 #tag1 #tag2
+- [x] Выполненная задача ⏫ 📅 2026-01-20 ✅ 2026-01-22
+```
+
+**Приоритеты:** 🔺 critical, ⏫ high, 🔼 medium, 🔽 low
+
+### Конфигурация
+
+Настройте `config/sync_config.yaml`:
+
+```yaml
+vault_path: "/path/to/obsidian/vault"
+
+sync_sources:
+  - "00_Inbox/TODO*.md"
+  - "01_Projects/*/Tasks.md"
+
+tag_mapping:
+  health: "Здоровье"
+  work: "Работа"
+
+folder_mapping:
+  "01_Projects/MyProject": "My Project"
+```
+
+### API Endpoints
+
+```
+GET  /sync/status              # Статус последней синхронизации
+POST /sync/import              # Импорт из Obsidian
+POST /sync/export              # Экспорт в Obsidian
+GET  /sync/conflicts           # Список конфликтов
+POST /sync/conflicts/{id}/resolve  # Разрешить конфликт
 ```
 
 ## Быстрый старт
@@ -135,11 +185,13 @@ obsidian-task-manager/
 │   ├── services/          # Business logic
 │   ├── repositories/      # Data access
 │   ├── models/            # SQLAlchemy models
-│   └── core/              # Config, database
+│   ├── core/              # Config, database
+│   └── integrations/      # External integrations
+│       └── obsidian/      # Obsidian sync (parser, writer, resolver)
 │
 ├── frontend/              # Frontend (React/TypeScript)
 │   ├── src/
-│   │   ├── pages/        # Dashboard, Projects, Tasks, Settings
+│   │   ├── pages/        # Dashboard, Projects, Tasks, Settings, Sync
 │   │   ├── components/   # UI components (shadcn/ui)
 │   │   ├── api/          # API client
 │   │   ├── hooks/        # React Query hooks
@@ -178,6 +230,7 @@ obsidian-task-manager/
 - **[Architecture Decisions](docs/adr/)** — ADR документы
 - **[Frontend README](frontend/README.md)** — документация frontend
 - **[Contributing](CONTRIBUTING.md)** — как контрибьютить
+- **[Sync Config Example](config/sync_config.yaml)** — пример конфигурации синхронизации
 
 ## Разработка
 

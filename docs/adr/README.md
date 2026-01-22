@@ -96,6 +96,13 @@ Architecture Decision Record (ADR) - это документ, который ф�
     - Mixin для created_at/updated_at
     - DRY principle для всех моделей
 
+### Интеграции
+
+18. **[ADR-0018: Obsidian Sync Integration](0018-obsidian-sync-integration.md)**
+    - Двусторонняя синхронизация с Obsidian Tasks Plugin
+    - Parser, Writer, Project Resolver
+    - Conflict Resolution UI
+
 ### Инфраструктура
 
 12. **[ADR-0012: Fully Async Architecture](0012-async-architecture.md)**
@@ -201,13 +208,14 @@ ADR-0008 (SQLAlchemy)
 
 ## Статистика
 
-- **Всего ADR**: 17
+- **Всего ADR**: 18
 - **Architectural Patterns**: 4 (ADR-0001 to ADR-0004)
 - **Tech Stack Backend**: 4 (ADR-0005, ADR-0006, ADR-0008, ADR-0011)
 - **Tech Stack Frontend**: 1 (ADR-0017)
 - **Data Management**: 4 (ADR-0007, ADR-0009, ADR-0010, ADR-0015)
 - **Business Logic**: 2 (ADR-0013, ADR-0014)
 - **Infrastructure**: 2 (ADR-0012, ADR-0016)
+- **Integrations**: 1 (ADR-0018)
 
 ## Ключевые принципы проекта
 
