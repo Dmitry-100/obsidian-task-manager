@@ -29,3 +29,17 @@ export {
   useDeleteTask,
   useToggleTaskComplete,
 } from './useTasks';
+
+// Sync hooks
+export {
+  syncKeys,
+  useSyncStatus,
+  useSyncConflicts,
+  useSyncHistory,
+  useSyncConfig,
+  useImportFromObsidian,
+  useExportToObsidian,
+  useResolveConflict,
+  useResolveAllConflicts,
+  useUpdateSyncConfig,
+} from './useSync';

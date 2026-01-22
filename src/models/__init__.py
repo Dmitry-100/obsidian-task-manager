@@ -2,6 +2,8 @@
 
 from .base import Base, TimestampMixin
 from .project import Project
+from .sync_conflict import ConflictResolution, SyncConflict
+from .sync_log import SyncLog, SyncStatus, SyncType
 from .tag import Tag
 from .task import Task, TaskPriority, TaskStatus
 from .task_comment import TaskComment
@@ -17,4 +19,9 @@ __all__ = [
     "TaskPriority",
     "TaskComment",
     "task_tags",
+    "SyncLog",
+    "SyncType",
+    "SyncStatus",
+    "SyncConflict",
+    "ConflictResolution",
 ]

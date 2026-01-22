@@ -402,3 +402,136 @@ class PaginatedResponse(BaseModel):
     total: int  # Всего элементов
     skip: int  # Пропущено
     limit: int  # Лимит на странице
+
+
+# ============================================================================
+# SYNC SCHEMAS
+# ============================================================================
+
+
+class SyncImportRequest(BaseModel):
+    """Request schema for importing from Obsidian."""
+
+    source_files: list[str] | None = Field(
+        None, description="Specific files to import (uses config sources if empty)"
+    )
+
+
+class SyncExportRequest(BaseModel):
+    """Request schema for exporting to Obsidian."""
+
+    project_id: int | None = Field(None, description="Project to export (exports all if empty)")
+    output_path: str | None = Field(None, description="Output file path (uses default if empty)")
+
+
+class ConflictResolutionRequest(BaseModel):
+    """Request schema for resolving a conflict."""
+
+    resolution: str = Field(
+        ...,
+        description="Resolution choice: 'obsidian', 'database', 'skip', or 'manual'",
+        pattern=r"^(obsidian|database|skip|manual)$",
+    )
+
+
+class ResolveAllConflictsRequest(BaseModel):
+    """Request schema for resolving all conflicts."""
+
+    resolution: str = Field(
+        ...,
+        description="Resolution to apply to all: 'obsidian', 'database', or 'skip'",
+        pattern=r"^(obsidian|database|skip)$",
+    )
+
+
+class SyncLogResponse(BaseModel):
+    """Response schema for sync log."""
+
+    id: int
+    sync_type: str
+    status: str
+    source_file: str | None
+    tasks_created: int
+    tasks_updated: int
+    tasks_skipped: int
+    conflicts_count: int
+    error_message: str | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyncConflictResponse(BaseModel):
+    """Response schema for sync conflict."""
+
+    id: int
+    sync_log_id: int
+    task_id: int | None
+    obsidian_path: str
+    obsidian_line: int
+    obsidian_title: str
+    obsidian_status: str
+    obsidian_due_date: date | None
+    obsidian_priority: str
+    obsidian_modified: datetime
+    obsidian_raw_line: str | None
+    db_title: str | None
+    db_status: str | None
+    db_due_date: date | None
+    db_priority: str | None
+    db_modified: datetime | None
+    resolution: str | None
+    resolved_at: datetime | None
+    resolved_by: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyncResultResponse(BaseModel):
+    """Response schema for sync operation result."""
+
+    success: bool
+    sync_log_id: int
+    tasks_created: int = 0
+    tasks_updated: int = 0
+    tasks_skipped: int = 0
+    conflicts_count: int = 0
+    error_message: str | None = None
+
+
+class SyncStatusResponse(BaseModel):
+    """Response schema for sync status."""
+
+    is_syncing: bool
+    last_sync: SyncLogResponse | None
+    unresolved_conflicts: int
+    total_syncs: int
+
+
+class SyncConfigResponse(BaseModel):
+    """Response schema for sync configuration."""
+
+    vault_path: str
+    sync_sources: list[str]
+    folder_mapping: dict[str, str]
+    tag_mapping: dict[str, str]
+    section_mapping: dict[str, str]
+    default_project: str
+    default_conflict_resolution: str
+
+
+class SyncConfigUpdate(BaseModel):
+    """Request schema for updating sync configuration."""
+
+    vault_path: str | None = None
+    sync_sources: list[str] | None = None
+    folder_mapping: dict[str, str] | None = None
+    tag_mapping: dict[str, str] | None = None
+    section_mapping: dict[str, str] | None = None
+    default_project: str | None = None
+    default_conflict_resolution: str | None = None

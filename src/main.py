@@ -22,7 +22,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from .api import projects_router, tags_router, tasks_router
+from .api import projects_router, sync_router, tags_router, tasks_router
 from .api.dependencies import verify_api_key
 from .api.errors import register_error_handlers
 from .core.config import settings
@@ -133,6 +133,7 @@ api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(projects_router)
 api_v1_router.include_router(tasks_router)
 api_v1_router.include_router(tags_router)
+api_v1_router.include_router(sync_router)
 
 
 # ============================================================================
@@ -181,6 +182,7 @@ async def root(request: Request):
             "projects": "/api/v1/projects",
             "tasks": "/api/v1/tasks",
             "tags": "/api/v1/tags",
+            "sync": "/api/v1/sync",
         },
         "deprecated_endpoints": {
             "projects": "/projects (use /api/v1/projects)",

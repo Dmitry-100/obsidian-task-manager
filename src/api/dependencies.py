@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import settings
 from ..core.database import AsyncSessionLocal
-from ..services import ProjectService, TagService, TaskService
+from ..services import ProjectService, SyncService, TagService, TaskService
 
 # ============================================================================
 # API KEY AUTHENTICATION
@@ -178,6 +178,23 @@ async def get_tag_service(db: AsyncSession = Depends(get_db)) -> TagService:
             ...
     """
     return TagService(db)
+
+
+async def get_sync_service(db: AsyncSession = Depends(get_db)) -> SyncService:
+    """
+    Dependency для SyncService.
+
+    Использование:
+        @app.post("/sync/import")
+        async def import_from_obsidian(
+            service: SyncService = Depends(get_sync_service)
+        ):
+            ...
+    """
+    from ..integrations.obsidian.project_resolver import get_config
+
+    config = get_config()
+    return SyncService(db, config)
 
 
 # ============================================================================

@@ -307,3 +307,160 @@ export interface ProjectFilters {
   skip?: number;
   limit?: number;
 }
+
+// =============================================================================
+// SYNC TYPES
+// =============================================================================
+
+/**
+ * Тип операции синхронизации.
+ */
+export const SyncType = {
+  IMPORT: 'import',
+  EXPORT: 'export',
+  FULL: 'full',
+} as const;
+
+export type SyncType = (typeof SyncType)[keyof typeof SyncType];
+
+/**
+ * Статус операции синхронизации.
+ */
+export const SyncStatus = {
+  PENDING: 'pending',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+} as const;
+
+export type SyncStatus = (typeof SyncStatus)[keyof typeof SyncStatus];
+
+/**
+ * Тип разрешения конфликта.
+ */
+export const ConflictResolution = {
+  OBSIDIAN: 'obsidian',
+  DATABASE: 'database',
+  SKIP: 'skip',
+  MANUAL: 'manual',
+} as const;
+
+export type ConflictResolution = (typeof ConflictResolution)[keyof typeof ConflictResolution];
+
+/**
+ * Лог синхронизации.
+ */
+export interface SyncLog {
+  id: number;
+  sync_type: string;
+  status: string;
+  source_file: string | null;
+  tasks_created: number;
+  tasks_updated: number;
+  tasks_skipped: number;
+  conflicts_count: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Конфликт синхронизации.
+ */
+export interface SyncConflict {
+  id: number;
+  sync_log_id: number;
+  task_id: number | null;
+  obsidian_path: string;
+  obsidian_line: number;
+  obsidian_title: string;
+  obsidian_status: string;
+  obsidian_due_date: string | null;
+  obsidian_priority: string;
+  obsidian_modified: string;
+  obsidian_raw_line: string | null;
+  db_title: string | null;
+  db_status: string | null;
+  db_due_date: string | null;
+  db_priority: string | null;
+  db_modified: string | null;
+  resolution: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Результат операции синхронизации.
+ */
+export interface SyncResult {
+  success: boolean;
+  sync_log_id: number;
+  tasks_created: number;
+  tasks_updated: number;
+  tasks_skipped: number;
+  conflicts_count: number;
+  error_message: string | null;
+}
+
+/**
+ * Текущий статус синхронизации.
+ */
+export interface SyncStatusInfo {
+  is_syncing: boolean;
+  last_sync: SyncLog | null;
+  unresolved_conflicts: number;
+  total_syncs: number;
+}
+
+/**
+ * Конфигурация синхронизации.
+ */
+export interface SyncConfig {
+  vault_path: string;
+  sync_sources: string[];
+  folder_mapping: Record<string, string>;
+  tag_mapping: Record<string, string>;
+  section_mapping: Record<string, string>;
+  default_project: string;
+  default_conflict_resolution: string;
+}
+
+/**
+ * Запрос на импорт из Obsidian.
+ */
+export interface SyncImportRequest {
+  source_files?: string[];
+}
+
+/**
+ * Запрос на экспорт в Obsidian.
+ */
+export interface SyncExportRequest {
+  project_id?: number;
+  output_path?: string;
+}
+
+/**
+ * Запрос на разрешение конфликта.
+ */
+export interface ConflictResolutionRequest {
+  resolution: ConflictResolution;
+}
+
+/**
+ * Запрос на обновление конфигурации.
+ */
+export interface SyncConfigUpdate {
+  vault_path?: string;
+  sync_sources?: string[];
+  folder_mapping?: Record<string, string>;
+  tag_mapping?: Record<string, string>;
+  section_mapping?: Record<string, string>;
+  default_project?: string;
+  default_conflict_resolution?: string;
+}

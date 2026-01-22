@@ -47,3 +47,17 @@ export {
   createTag,
   deleteTag,
 } from './tags';
+
+// Sync API
+export {
+  getSyncStatus,
+  importFromObsidian,
+  exportToObsidian,
+  getConflicts,
+  getConflict,
+  resolveConflict,
+  resolveAllConflicts,
+  getSyncHistory,
+  getSyncConfig,
+  updateSyncConfig,
+} from './sync';

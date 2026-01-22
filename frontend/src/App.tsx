@@ -40,6 +40,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Projects } from '@/pages/Projects';
 import { Tasks } from '@/pages/Tasks';
 import { Settings } from '@/pages/Settings';
+import { Sync } from '@/pages/Sync';
 
 // =============================================================================
 // Конфигурация TanStack Query
@@ -140,6 +141,11 @@ function App() {
              * /settings — страница настроек
              * ----------------------------------------------------------------- */}
             <Route path="settings" element={<Settings />} />
+
+            {/* -----------------------------------------------------------------
+             * /sync — страница синхронизации с Obsidian
+             * ----------------------------------------------------------------- */}
+            <Route path="sync" element={<Sync />} />
 
             {/* -----------------------------------------------------------------
              * 404 — страница не найдена
