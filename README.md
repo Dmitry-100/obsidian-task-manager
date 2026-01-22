@@ -143,6 +143,86 @@ npm run dev
 - **API Docs (Swagger):** http://localhost:8000/docs
 - **API Docs (ReDoc):** http://localhost:8000/redoc
 
+## Docker (рекомендуется)
+
+Самый простой способ запустить проект — через Docker Compose.
+
+### Быстрый старт с Docker
+
+```bash
+# 1. Клонировать репозиторий
+git clone https://github.com/Dmitry-100/obsidian-task-manager.git
+cd obsidian-task-manager
+
+# 2. Скопировать и настроить .env
+cp config/.env.example config/.env
+
+# 3. Запустить всё одной командой
+docker-compose up --build
+```
+
+После запуска:
+- **API:** http://localhost:8000
+- **Docs:** http://localhost:8000/docs
+- **Health:** http://localhost:8000/health
+
+### Docker команды
+
+```bash
+# Запуск в фоне
+docker-compose up -d
+
+# Остановка
+docker-compose down
+
+# Просмотр логов
+docker-compose logs -f app
+
+# Пересборка после изменений
+docker-compose up --build
+
+# Полная очистка (удаляет данные!)
+docker-compose down -v
+```
+
+### Что запускается
+
+Docker Compose создаёт:
+1. **db** — PostgreSQL 16 (данные сохраняются в volume)
+2. **migrations** — применяет миграции Alembic (запускается один раз)
+3. **app** — FastAPI приложение
+
+### Переменные окружения для Docker
+
+Настраиваются в `config/.env`:
+
+```bash
+# PostgreSQL
+POSTGRES_USER=obsidian
+POSTGRES_PASSWORD=your-secure-password
+POSTGRES_DB=obsidian_tasks
+
+# Application
+API_KEY=your-api-key
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
+
+### Health Check
+
+Docker проверяет здоровье приложения через `/health`:
+
+```json
+{
+  "status": "ok",
+  "checks": {
+    "database": "connected",
+    "version": "1.0.0",
+    "uptime_seconds": 3600
+  }
+}
+```
+
 ## Настройка базы данных
 
 ```bash

@@ -15,8 +15,10 @@ API документация:
     Старые пути (/projects, /tasks, /tags) также поддерживаются для обратной совместимости.
 """
 
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,11 +26,30 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from sqlalchemy import text
 
 from .api import projects_router, sync_router, tags_router, tasks_router
 from .api.dependencies import verify_api_key
 from .api.errors import register_error_handlers
+from .api.middleware import RequestLoggingMiddleware
 from .core.config import settings
+from .core.database import AsyncSessionLocal
+from .core.logging import get_logger, setup_logging
+
+# Инициализируем логирование при импорте модуля
+# LOG_LEVEL: DEBUG/INFO/WARNING/ERROR - что логировать
+# LOG_FORMAT: json (production) / simple (development)
+setup_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
+
+# Создаём логгер для этого модуля
+logger = get_logger(__name__)
+
+# ============================================================================
+# APPLICATION METADATA
+# ============================================================================
+
+APP_VERSION = "1.0.0"
+APP_START_TIME: float = 0.0  # Will be set on startup
 
 # ============================================================================
 # RATE LIMITER SETUP
@@ -70,8 +91,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Startup: инициализация ресурсов
     Shutdown: освобождение ресурсов
     """
+    global APP_START_TIME
+
     # Startup
-    print(f"🚀 {settings.APP_NAME} started!")
+    APP_START_TIME = time.time()
+
+    # Логируем запуск приложения (структурированно)
+    logger.info(
+        "Application started",
+        extra={
+            "app_name": settings.APP_NAME,
+            "version": APP_VERSION,
+            "debug": settings.DEBUG,
+            "log_level": settings.LOG_LEVEL,
+        },
+    )
+
+    # Также выводим в консоль для удобства разработки
+    print(f"🚀 {settings.APP_NAME} v{APP_VERSION} started!")
     print("📚 Docs: http://localhost:8000/docs")
     print("📖 ReDoc: http://localhost:8000/redoc")
     print("🔒 Rate Limit: 100 requests/minute")
@@ -80,7 +117,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield  # Application runs here
 
     # Shutdown
-    print(f"👋 {settings.APP_NAME} stopped!")
+    uptime = int(time.time() - APP_START_TIME)
+    logger.info("Application stopped", extra={"uptime_seconds": uptime})
+    print(f"👋 {settings.APP_NAME} stopped! (uptime: {uptime}s)")
 
 
 # ============================================================================
@@ -126,7 +165,7 @@ app = FastAPI(
     - **100 запросов/минуту** для обычных endpoints
     - При превышении лимита вернётся ошибка 429 Too Many Requests
     """,
-    version="1.0.0",
+    version=APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -150,6 +189,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Добавляем middleware для логирования HTTP запросов
+# Каждый запрос будет залогирован с методом, путём, статусом и временем
+app.add_middleware(RequestLoggingMiddleware)
 
 
 # ============================================================================
@@ -203,7 +246,7 @@ async def root(request: Request):
     """
     return {
         "name": settings.APP_NAME,
-        "version": "1.0.0",
+        "version": APP_VERSION,
         "api_version": "v1",
         "docs": "/docs",
         "redoc": "/redoc",
@@ -238,21 +281,67 @@ async def health_check(request: Request):
     Health check endpoint.
 
     Используется для мониторинга и проверки доступности API.
+    Проверяет подключение к базе данных.
 
-    Пример ответа:
+    Пример ответа (200 OK):
     ```json
     {
-        "status": "healthy",
-        "database": "connected"
+        "status": "ok",
+        "checks": {
+            "database": "connected",
+            "version": "1.0.0",
+            "uptime_seconds": 3600
+        },
+        "timestamp": "2026-01-22T12:00:00Z"
+    }
+    ```
+
+    Пример ответа (503 Service Unavailable):
+    ```json
+    {
+        "status": "error",
+        "checks": {
+            "database": "disconnected",
+            "version": "1.0.0",
+            "uptime_seconds": 3600
+        },
+        "timestamp": "2026-01-22T12:00:00Z"
     }
     ```
     """
-    # TODO: Добавить проверку подключения к БД
-    return {
-        "status": "healthy",
-        "database": "not_checked",  # можно добавить проверку
-        "rate_limit": "100/minute",
+    from fastapi.responses import JSONResponse
+
+    # Calculate uptime
+    uptime_seconds = int(time.time() - APP_START_TIME) if APP_START_TIME > 0 else 0
+
+    # Check database connection
+    db_status = "disconnected"
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+            db_status = "connected"
+    except Exception:
+        db_status = "disconnected"
+
+    # Build response
+    checks = {
+        "database": db_status,
+        "version": APP_VERSION,
+        "uptime_seconds": uptime_seconds,
     }
+
+    timestamp = datetime.now(UTC).isoformat()
+    overall_status = "ok" if db_status == "connected" else "error"
+    status_code = 200 if overall_status == "ok" else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": overall_status,
+            "checks": checks,
+            "timestamp": timestamp,
+        },
+    )
 
 
 # ============================================================================

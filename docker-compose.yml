@@ -1,0 +1,138 @@
+# =============================================================================
+# Docker Compose для Obsidian Task Manager
+# =============================================================================
+#
+# Запуск:
+#   docker-compose up --build        # Сборка и запуск
+#   docker-compose up -d             # Запуск в фоне
+#   docker-compose down              # Остановка
+#   docker-compose logs -f app       # Логи приложения
+#
+# После запуска:
+#   - API: http://localhost:8000
+#   - Docs: http://localhost:8000/docs
+#   - Health: http://localhost:8000/health
+#
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: obsidian_tasks_db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-obsidian}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-obsidian_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-obsidian_tasks}
+
+    # Persistent volume для данных
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # Health check для PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-obsidian} -d ${POSTGRES_DB:-obsidian_tasks}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    networks:
+      - app-network
+
+    # Не экспортируем порт наружу по умолчанию (безопасность)
+    # Раскомментируйте для отладки:
+    # ports:
+    #   - "5432:5432"
+
+  # ===========================================================================
+  # Migrations (запускается один раз)
+  # ===========================================================================
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obsidian_tasks_migrations
+
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-obsidian}:${POSTGRES_PASSWORD:-obsidian_secret}@db:5432/${POSTGRES_DB:-obsidian_tasks}
+
+    # Запускаем миграции и завершаемся
+    command: ["alembic", "upgrade", "head"]
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - app-network
+
+    # Не перезапускаем после успешного выполнения
+    restart: "no"
+
+  # ===========================================================================
+  # FastAPI Application
+  # ===========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obsidian_tasks_app
+    restart: unless-stopped
+
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-obsidian}:${POSTGRES_PASSWORD:-obsidian_secret}@db:5432/${POSTGRES_DB:-obsidian_tasks}
+      DATABASE_ECHO: ${DATABASE_ECHO:-false}
+
+      # Application
+      APP_NAME: ${APP_NAME:-Obsidian Task Manager}
+      DEBUG: ${DEBUG:-false}
+
+      # Security
+      API_KEY: ${API_KEY:-dev-api-key-change-in-production}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+
+      # Obsidian (опционально, для sync)
+      OBSIDIAN_VAULT_PATH: ${OBSIDIAN_VAULT_PATH:-}
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    networks:
+      - app-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: obsidian_tasks_postgres_data
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  app-network:
+    name: obsidian_tasks_network
+    driver: bridge
