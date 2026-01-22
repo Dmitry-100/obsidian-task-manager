@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import Base
+from .base import Base, utc_now
 
 
 class Tag(Base):
@@ -15,7 +15,7 @@ class Tag(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
     # Relationships
     tasks: Mapped[list["Task"]] = relationship("Task", secondary="task_tags", back_populates="tags")
