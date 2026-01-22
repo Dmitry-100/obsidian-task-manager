@@ -1,6 +1,6 @@
 """Sync repository for sync logs and conflicts."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,7 +67,7 @@ class SyncLogRepository(BaseRepository[SyncLog]):
             sync_type=sync_type,
             status=SyncStatus.IN_PROGRESS,
             source_file=source_file,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
         )
         return await self.create(sync_log)
 
@@ -87,7 +87,7 @@ class SyncLogRepository(BaseRepository[SyncLog]):
             tasks_updated=tasks_updated,
             tasks_skipped=tasks_skipped,
             conflicts_count=conflicts_count,
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
 
     async def fail_sync(self, sync_log_id: int, error_message: str) -> SyncLog | None:
@@ -96,7 +96,7 @@ class SyncLogRepository(BaseRepository[SyncLog]):
             sync_log_id,
             status=SyncStatus.FAILED,
             error_message=error_message,
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
 
 
@@ -146,7 +146,7 @@ class SyncConflictRepository(BaseRepository[SyncConflict]):
         return await self.update(
             conflict_id,
             resolution=resolution,
-            resolved_at=datetime.utcnow(),
+            resolved_at=datetime.now(UTC),
             resolved_by=resolved_by,
         )
 

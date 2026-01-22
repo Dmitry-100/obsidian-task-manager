@@ -17,7 +17,7 @@
 
 import shutil
 import tempfile
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -73,8 +73,8 @@ async def sample_sync_log(test_db):
         status=SyncStatus.COMPLETED,
         tasks_created=5,
         tasks_updated=3,
-        started_at=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
     )
     test_db.add(log)
     await test_db.flush()
@@ -93,11 +93,11 @@ async def sample_conflict(test_db, sample_sync_log, sample_task):
         obsidian_status="done",
         obsidian_due_date=date(2026, 1, 25),
         obsidian_priority="high",
-        obsidian_modified=datetime.utcnow(),
+        obsidian_modified=datetime.now(UTC),
         db_title="DB Task",
         db_status="todo",
         db_priority="medium",
-        db_modified=datetime.utcnow(),
+        db_modified=datetime.now(UTC),
     )
     test_db.add(conflict)
     await test_db.flush()
@@ -405,7 +405,7 @@ class TestGetConflicts:
             obsidian_title="Other",
             obsidian_status="todo",
             obsidian_priority="low",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(other_conflict)
         await test_db.flush()
@@ -531,7 +531,7 @@ class TestResolveConflict:
     ):
         """POST /sync/conflicts/{id}/resolve для уже разрешённого → 400."""
         sample_conflict.resolution = ConflictResolution.SKIP
-        sample_conflict.resolved_at = datetime.utcnow()
+        sample_conflict.resolved_at = datetime.now(UTC)
         await test_db.flush()
 
         response = await test_client.post(
@@ -579,7 +579,7 @@ class TestResolveAllConflicts:
                 obsidian_title=f"Task {i}",
                 obsidian_status="todo",
                 obsidian_priority="medium",
-                obsidian_modified=datetime.utcnow(),
+                obsidian_modified=datetime.now(UTC),
             )
             test_db.add(conflict)
         await test_db.flush()

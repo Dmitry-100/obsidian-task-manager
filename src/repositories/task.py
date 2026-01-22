@@ -1,6 +1,6 @@
 """Task repository with specific queries."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -295,7 +295,7 @@ class TaskRepository(BaseRepository[Task]):
         - status = DONE
         - completed_at = текущее время
         """
-        return await self.update(task_id, status=TaskStatus.DONE, completed_at=datetime.utcnow())
+        return await self.update(task_id, status=TaskStatus.DONE, completed_at=datetime.now(UTC))
 
     async def search_by_title(self, search_term: str) -> list[Task]:
         """

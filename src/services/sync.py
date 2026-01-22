@@ -1,7 +1,7 @@
 """Sync service for Obsidian integration."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -451,7 +451,7 @@ class SyncService:
             obsidian_status=parsed.status,
             obsidian_due_date=parsed.due_date,
             obsidian_priority=parsed.priority,
-            obsidian_modified=parsed.file_modified or datetime.utcnow(),
+            obsidian_modified=parsed.file_modified or datetime.now(UTC),
             obsidian_raw_line=parsed.raw_line,
             db_title=existing.title,
             db_status=existing.status.value,

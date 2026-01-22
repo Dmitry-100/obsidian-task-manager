@@ -8,7 +8,7 @@
 - Defaults
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 import pytest_asyncio
@@ -132,7 +132,7 @@ class TestSyncLogModel:
     @pytest.mark.asyncio
     async def test_create_sync_log_full(self, test_db):
         """Создание SyncLog со всеми полями."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         log = SyncLog(
             sync_type=SyncType.EXPORT,
             status=SyncStatus.COMPLETED,
@@ -248,7 +248,7 @@ class TestSyncConflictModel:
             obsidian_title="Task title",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(conflict)
         await test_db.flush()
@@ -260,7 +260,7 @@ class TestSyncConflictModel:
     @pytest.mark.asyncio
     async def test_create_conflict_full(self, test_db, sync_log, task):
         """Создание конфликта со всеми полями."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         conflict = SyncConflict(
             sync_log_id=sync_log.id,
             task_id=task.id,
@@ -299,7 +299,7 @@ class TestSyncConflictModel:
             obsidian_title="New task",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(conflict)
         await test_db.flush()
@@ -316,7 +316,7 @@ class TestSyncConflictModel:
             obsidian_title="Conflicting task",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(conflict)
         await test_db.flush()
@@ -334,7 +334,7 @@ class TestSyncConflictModel:
             obsidian_title="A very long task title that should be truncated",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(conflict)
         await test_db.flush()
@@ -354,7 +354,7 @@ class TestSyncConflictModel:
             obsidian_title="Resolved task",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
             resolution=ConflictResolution.DATABASE,
         )
         test_db.add(conflict)
@@ -390,7 +390,7 @@ class TestSyncRelationships:
             obsidian_title="Conflict 1",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         conflict2 = SyncConflict(
             sync_log_id=log.id,
@@ -399,7 +399,7 @@ class TestSyncRelationships:
             obsidian_title="Conflict 2",
             obsidian_status="done",
             obsidian_priority="high",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add_all([conflict1, conflict2])
         await test_db.flush()
@@ -426,7 +426,7 @@ class TestSyncRelationships:
             obsidian_title="Conflict",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(conflict)
         await test_db.flush()
@@ -451,7 +451,7 @@ class TestSyncRelationships:
             obsidian_title="Conflict",
             obsidian_status="todo",
             obsidian_priority="medium",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(conflict)
         await test_db.flush()

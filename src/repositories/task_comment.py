@@ -1,6 +1,6 @@
 """Task comment repository with specific queries."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,7 +76,7 @@ class TaskCommentRepository(BaseRepository[TaskComment]):
             # Комментарии за последние 3 дня
             recent = await repo.get_recent_comments(days=3)
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
         result = await self.db.execute(
             select(TaskComment)

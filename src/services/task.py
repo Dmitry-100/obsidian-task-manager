@@ -1,6 +1,6 @@
 """Task service with business logic."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -228,7 +228,7 @@ class TaskService:
 
             # Если переводим в DONE - установить completed_at
             if status == TaskStatus.DONE and task.status != TaskStatus.DONE:
-                updates["completed_at"] = datetime.utcnow()
+                updates["completed_at"] = datetime.now(UTC)
 
             # Если убираем из DONE - сбросить completed_at
             if status != TaskStatus.DONE and task.status == TaskStatus.DONE:

@@ -12,7 +12,7 @@
 
 import shutil
 import tempfile
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -106,7 +106,7 @@ async def sample_conflict(test_db, sample_sync_log, sample_task):
         obsidian_status="done",
         obsidian_due_date=date(2026, 1, 25),
         obsidian_priority="high",
-        obsidian_modified=datetime.utcnow(),
+        obsidian_modified=datetime.now(UTC),
     )
     test_db.add(conflict)
     await test_db.flush()
@@ -467,7 +467,7 @@ class TestGetConflicts:
             obsidian_title="Other Task",
             obsidian_status="todo",
             obsidian_priority="low",
-            obsidian_modified=datetime.utcnow(),
+            obsidian_modified=datetime.now(UTC),
         )
         test_db.add(other_conflict)
         await test_db.flush()
@@ -553,7 +553,7 @@ class TestResolveConflict:
     async def test_resolve_already_resolved(self, sync_service, sample_conflict, test_db):
         """Повторное разрешение конфликта."""
         sample_conflict.resolution = ConflictResolution.SKIP
-        sample_conflict.resolved_at = datetime.utcnow()
+        sample_conflict.resolved_at = datetime.now(UTC)
         await test_db.flush()
 
         with pytest.raises(ValueError, match="already resolved"):
@@ -581,7 +581,7 @@ class TestResolveAllConflicts:
                 obsidian_title=f"Task {i}",
                 obsidian_status="done",
                 obsidian_priority="high",
-                obsidian_modified=datetime.utcnow(),
+                obsidian_modified=datetime.now(UTC),
             )
             test_db.add(conflict)
         await test_db.flush()

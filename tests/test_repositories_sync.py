@@ -8,7 +8,7 @@
 - resolve, resolve_all_for_sync
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 import pytest_asyncio
@@ -86,11 +86,11 @@ def create_conflict(
         obsidian_title=title,
         obsidian_status="todo",
         obsidian_priority="medium",
-        obsidian_modified=datetime.utcnow(),
+        obsidian_modified=datetime.now(UTC),
     )
     if resolved:
         conflict.resolution = ConflictResolution.OBSIDIAN
-        conflict.resolved_at = datetime.utcnow()
+        conflict.resolved_at = datetime.now(UTC)
         conflict.resolved_by = "test"
     return conflict
 
@@ -568,7 +568,7 @@ class TestEdgeCases:
         self, sync_conflict_repo, test_db, sample_sync_log, task
     ):
         """Конфликт со всеми заполненными полями."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         conflict = SyncConflict(
             sync_log_id=sample_sync_log.id,
             task_id=task.id,
