@@ -38,10 +38,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 // Хуки для работы с данными
-import { useProjects, useCreateProject } from '@/hooks';
+import { useProjects, useCreateProject, useUpdateProject, useDeleteProject } from '@/hooks';
 
 // Типы
-import type { Project, ProjectCreate } from '@/types';
+import type { Project, ProjectCreate, ProjectUpdate } from '@/types';
 
 // =============================================================================
 // Компонент Projects
@@ -60,6 +60,13 @@ export function Projects() {
     color: '#3B82F6', // Синий по умолчанию
   });
 
+  // Состояние для редактирования
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editForm, setEditForm] = useState<ProjectUpdate>({});
+
+  // Состояние для удаления
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+
   // ---------------------------------------------------------------------------
   // Hooks (React Query)
   // ---------------------------------------------------------------------------
@@ -75,6 +82,8 @@ export function Projects() {
   //   - isPending: boolean — мутация выполняется
   //   - error: Error | null — ошибка
   const createMutation = useCreateProject();
+  const updateMutation = useUpdateProject();
+  const deleteMutation = useDeleteProject();
 
   // ---------------------------------------------------------------------------
   // Handlers (обработчики событий)
@@ -90,6 +99,52 @@ export function Projects() {
         setNewProject({ name: '', description: '', color: '#3B82F6' });
       },
       // onError обрабатывается автоматически через React Query
+    });
+  };
+
+  // Открытие диалога редактирования
+  const handleEditClick = (project: Project, e: React.MouseEvent) => {
+    e.preventDefault(); // Предотвращаем переход по ссылке
+    e.stopPropagation();
+    setEditingProject(project);
+    setEditForm({
+      name: project.name,
+      description: project.description || '',
+      color: project.color || '#3B82F6',
+    });
+  };
+
+  // Сохранение изменений
+  const handleUpdateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject) return;
+
+    updateMutation.mutate(
+      { id: editingProject.id, data: editForm },
+      {
+        onSuccess: () => {
+          setEditingProject(null);
+          setEditForm({});
+        },
+      }
+    );
+  };
+
+  // Открытие диалога удаления
+  const handleDeleteClick = (project: Project, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeletingProject(project);
+  };
+
+  // Подтверждение удаления
+  const handleConfirmDelete = () => {
+    if (!deletingProject) return;
+
+    deleteMutation.mutate(deletingProject.id, {
+      onSuccess: () => {
+        setDeletingProject(null);
+      },
     });
   };
 
@@ -254,12 +309,115 @@ export function Projects() {
       </div>
 
       {/* -----------------------------------------------------------------------
+       * Диалог редактирования проекта
+       * ----------------------------------------------------------------------- */}
+      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать проект</DialogTitle>
+            <DialogDescription>
+              Измените данные проекта
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateProject} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Название *</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name || ''}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Описание</Label>
+              <Input
+                id="edit-description"
+                value={editForm.description || ''}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-color">Цвет</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-color"
+                  type="color"
+                  value={editForm.color || '#3B82F6'}
+                  onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+                  className="w-16 h-10 p-1"
+                />
+                <Input
+                  value={editForm.color || '#3B82F6'}
+                  onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setEditingProject(null)}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </div>
+
+            {updateMutation.error && (
+              <p className="text-red-500 text-sm">Ошибка: {updateMutation.error.message}</p>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* -----------------------------------------------------------------------
+       * Диалог подтверждения удаления
+       * ----------------------------------------------------------------------- */}
+      <Dialog open={!!deletingProject} onOpenChange={(open) => !open && setDeletingProject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить проект?</DialogTitle>
+            <DialogDescription>
+              Вы уверены что хотите удалить проект "{deletingProject?.name}"?
+              Это действие нельзя отменить. Все задачи проекта также будут удалены.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeletingProject(null)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
+            </Button>
+          </div>
+
+          {deleteMutation.error && (
+            <p className="text-red-500 text-sm mt-2">Ошибка: {deleteMutation.error.message}</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* -----------------------------------------------------------------------
        * Сетка проектов
        * ----------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Карточки существующих проектов */}
         {projects?.map((project: Project) => (
-          <ProjectCard key={project.id} project={project} />
+          <ProjectCard
+            key={project.id}
+            project={project}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
+          />
         ))}
 
         {/* Карточка "Создать проект" — всегда последняя */}
@@ -284,18 +442,46 @@ export function Projects() {
 // =============================================================================
 // ProjectCard — Компонент карточки проекта
 // =============================================================================
-function ProjectCard({ project }: { project: Project }) {
+interface ProjectCardProps {
+  project: Project;
+  onEdit: (project: Project, e: React.MouseEvent) => void;
+  onDelete: (project: Project, e: React.MouseEvent) => void;
+}
+
+function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
   return (
     <Link to={`/tasks?project=${project.id}`}>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full group">
         <CardHeader>
-          {/* Цветовой индикатор */}
-          {project.color && (
-            <div
-              className="w-4 h-4 rounded-full mb-2"
-              style={{ backgroundColor: project.color }}
-            />
-          )}
+          <div className="flex justify-between items-start">
+            {/* Цветовой индикатор */}
+            {project.color && (
+              <div
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: project.color }}
+              />
+            )}
+
+            {/* Кнопки действий (видны при наведении) */}
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={(e) => onEdit(project, e)}
+              >
+                ✏️
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-red-100"
+                onClick={(e) => onDelete(project, e)}
+              >
+                🗑️
+              </Button>
+            </div>
+          </div>
 
           <CardTitle className="line-clamp-1">{project.name}</CardTitle>
 

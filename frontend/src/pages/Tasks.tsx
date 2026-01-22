@@ -41,11 +41,11 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
 // Хуки
-import { useTasks, useCreateTask, useUpdateTask } from '@/hooks';
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks';
 import { useProjects } from '@/hooks';
 
 // Типы
-import type { Task, TaskCreate } from '@/types';
+import type { Task, TaskCreate, TaskUpdate } from '@/types';
 import { TaskStatus, TaskPriority } from '@/types';
 
 // =============================================================================
@@ -139,6 +139,13 @@ export function Tasks() {
     project_id: projectFilter ? parseInt(projectFilter) : undefined,
   });
 
+  // Состояние для редактирования
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState<TaskUpdate>({});
+
+  // Состояние для удаления
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+
   // ---------------------------------------------------------------------------
   // React Query хуки
   // ---------------------------------------------------------------------------
@@ -153,6 +160,7 @@ export function Tasks() {
   // Мутации
   const createMutation = useCreateTask();
   const updateMutation = useUpdateTask();
+  const deleteMutation = useDeleteTask();
 
   // ---------------------------------------------------------------------------
   // Фильтрация и сортировка (на клиенте)
@@ -243,6 +251,58 @@ export function Tasks() {
     updateMutation.mutate({
       id: task.id,
       data: { status: newStatus },
+    });
+  };
+
+  /**
+   * Открыть диалог редактирования.
+   */
+  const handleEditClick = (task: Task) => {
+    setEditingTask(task);
+    setEditForm({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      status: task.status,
+      due_date: task.due_date || undefined,
+    });
+  };
+
+  /**
+   * Сохранить изменения задачи.
+   */
+  const handleUpdateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    updateMutation.mutate(
+      { id: editingTask.id, data: editForm },
+      {
+        onSuccess: () => {
+          setEditingTask(null);
+          setEditForm({});
+        },
+      }
+    );
+  };
+
+  /**
+   * Открыть диалог удаления.
+   */
+  const handleDeleteClick = (task: Task) => {
+    setDeletingTask(task);
+  };
+
+  /**
+   * Подтвердить удаление.
+   */
+  const handleConfirmDelete = () => {
+    if (!deletingTask) return;
+
+    deleteMutation.mutate(deletingTask.id, {
+      onSuccess: () => {
+        setDeletingTask(null);
+      },
     });
   };
 
@@ -477,6 +537,136 @@ export function Tasks() {
       </div>
 
       {/* -----------------------------------------------------------------------
+       * Диалог редактирования задачи
+       * ----------------------------------------------------------------------- */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Редактировать задачу</DialogTitle>
+            <DialogDescription>Измените данные задачи</DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateTask} className="space-y-4">
+            {/* Название */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Название *</Label>
+              <Input
+                id="edit-title"
+                value={editForm.title || ''}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                required
+              />
+            </div>
+
+            {/* Описание */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Описание</Label>
+              <Input
+                id="edit-description"
+                value={editForm.description || ''}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+            </div>
+
+            {/* Статус и Приоритет */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Статус</Label>
+                <Select
+                  value={editForm.status || TaskStatus.TODO}
+                  onValueChange={(v) => setEditForm({ ...editForm, status: v as TaskStatus })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={TaskStatus.TODO}>К выполнению</SelectItem>
+                    <SelectItem value={TaskStatus.IN_PROGRESS}>В работе</SelectItem>
+                    <SelectItem value={TaskStatus.DONE}>Выполнено</SelectItem>
+                    <SelectItem value={TaskStatus.CANCELLED}>Отменено</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Приоритет</Label>
+                <Select
+                  value={editForm.priority || TaskPriority.MEDIUM}
+                  onValueChange={(v) => setEditForm({ ...editForm, priority: v as TaskPriority })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={TaskPriority.HIGH}>Высокий</SelectItem>
+                    <SelectItem value={TaskPriority.MEDIUM}>Средний</SelectItem>
+                    <SelectItem value={TaskPriority.LOW}>Низкий</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Дедлайн */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-due_date">Дедлайн</Label>
+              <Input
+                id="edit-due_date"
+                type="date"
+                value={editForm.due_date || ''}
+                onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value || undefined })}
+              />
+            </div>
+
+            {/* Кнопки */}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setEditingTask(null)}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </div>
+
+            {updateMutation.error && (
+              <p className="text-red-500 text-sm">Ошибка: {updateMutation.error.message}</p>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* -----------------------------------------------------------------------
+       * Диалог подтверждения удаления
+       * ----------------------------------------------------------------------- */}
+      <Dialog open={!!deletingTask} onOpenChange={(open) => !open && setDeletingTask(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить задачу?</DialogTitle>
+            <DialogDescription>
+              Вы уверены что хотите удалить задачу "{deletingTask?.title}"?
+              Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeletingTask(null)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
+            </Button>
+          </div>
+
+          {deleteMutation.error && (
+            <p className="text-red-500 text-sm mt-2">Ошибка: {deleteMutation.error.message}</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* -----------------------------------------------------------------------
        * Фильтры
        * ----------------------------------------------------------------------- */}
       <Card>
@@ -558,6 +748,8 @@ export function Tasks() {
                   task={task}
                   projects={projects || []}
                   onToggleComplete={() => handleToggleComplete(task)}
+                  onEdit={() => handleEditClick(task)}
+                  onDelete={() => handleDeleteClick(task)}
                   isUpdating={updateMutation.isPending}
                 />
               ))}
@@ -576,10 +768,12 @@ interface TaskRowProps {
   task: Task;
   projects: { id: number; name: string; color: string | null }[];
   onToggleComplete: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
   isUpdating: boolean;
 }
 
-function TaskRow({ task, projects, onToggleComplete, isUpdating }: TaskRowProps) {
+function TaskRow({ task, projects, onToggleComplete, onEdit, onDelete, isUpdating }: TaskRowProps) {
   const isDone = task.status === TaskStatus.DONE;
   const overdue = isOverdue(task);
   const project = projects.find((p) => p.id === task.project_id);
@@ -587,7 +781,7 @@ function TaskRow({ task, projects, onToggleComplete, isUpdating }: TaskRowProps)
   return (
     <div
       className={`
-        flex items-center gap-4 p-4 rounded-lg border transition-colors
+        group flex items-center gap-4 p-4 rounded-lg border transition-colors
         ${isDone ? 'bg-muted/30 opacity-60' : 'hover:bg-muted/50'}
         ${overdue ? 'border-red-200 bg-red-50/50' : ''}
       `}
@@ -667,6 +861,26 @@ function TaskRow({ task, projects, onToggleComplete, isUpdating }: TaskRowProps)
       {!isDone && task.status !== TaskStatus.TODO && (
         <Badge variant="secondary">{getStatusLabel(task.status)}</Badge>
       )}
+
+      {/* Кнопки действий */}
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={onEdit}
+        >
+          ✏️
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 hover:bg-red-100"
+          onClick={onDelete}
+        >
+          🗑️
+        </Button>
+      </div>
     </div>
   );
 }

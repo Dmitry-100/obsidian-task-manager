@@ -39,6 +39,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Dashboard } from '@/pages/Dashboard';
 import { Projects } from '@/pages/Projects';
 import { Tasks } from '@/pages/Tasks';
+import { Settings } from '@/pages/Settings';
 
 // =============================================================================
 // Конфигурация TanStack Query
@@ -134,6 +135,11 @@ function App() {
              * /tasks — страница задач
              * ----------------------------------------------------------------- */}
             <Route path="tasks" element={<Tasks />} />
+
+            {/* -----------------------------------------------------------------
+             * /settings — страница настроек
+             * ----------------------------------------------------------------- */}
+            <Route path="settings" element={<Settings />} />
 
             {/* -----------------------------------------------------------------
              * 404 — страница не найдена

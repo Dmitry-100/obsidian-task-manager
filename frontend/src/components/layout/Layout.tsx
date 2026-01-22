@@ -31,6 +31,7 @@ const navItems = [
   { path: '/', label: 'Dashboard' },
   { path: '/projects', label: 'Проекты' },
   { path: '/tasks', label: 'Задачи' },
+  { path: '/settings', label: 'Настройки' },
 ];
 
 // -----------------------------------------------------------------------------
